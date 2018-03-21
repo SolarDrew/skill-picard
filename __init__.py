@@ -1,6 +1,6 @@
 import logging
 
-from opsdoid.matchers import match_cron
+from opsdroid.matchers import match_cron
 from slacker import Slacker
 
 """
