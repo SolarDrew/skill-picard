@@ -1,6 +1,6 @@
 import logging
 
-from opsdroid.matchers import match_cron
+from opsdroid.matchers import match_crontab
 from slacker import Slacker
 
 """
@@ -25,7 +25,7 @@ for user in users:
             'is_owner'])
 print()"""
 
-@match_cron('* * * * *')
+@match_crontab('* * * * *')
 async def mirror_slack_channels(opsdroid, config, message):
     """
     Check what channels exist in the Slack workspace and list them.
