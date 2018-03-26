@@ -11,4 +11,6 @@ None
 ```
 - name: matrixslack
   repo: https://github.com/SolarDrew/skill-matrixslack.git
+  slack_token: ...
+  bridge_bot_name: ...
 ```
