@@ -29,6 +29,23 @@ def join_bot_to_channel(slack, bot_id, channel_id):
             _LOGGER.exception("Invite failed")
 
 
+def get_new_channels(slack, seen_channels):
+    """
+    Get channels in the workspace that are not in seen_channels
+    """
+    # Get channel list
+    response = slack.channels.list()
+    channels = response.body['channels']
+
+    # Get the new channels we need to process
+    new_channels = []
+    for channel in channels:
+        if channel['id'] not in seen_channels:
+            new_channels.append(channel['id'])
+
+    return new_channels
+
+
 # @match_crontab('* * * * *')
 @match_regex('slack')
 async def mirror_slack_channels(opsdroid, config, message):
@@ -43,15 +60,26 @@ async def mirror_slack_channels(opsdroid, config, message):
     bridge_bot_id = config['bridge_bot_name']
     bridge_bot_id = slack.users.get_user_id(bridge_bot_id)
 
-    # Get channel list
-    response = slack.channels.list()
-    channels = response.body['channels']
-
+    # Get the channels we have already processed out of memory
     seen_channels = await opsdroid.memory.get("seen_channels")
     seen_channels = seen_channels if seen_channels else []
-    for channel in channels:
-        if channel['id'] not in seen_channels:
-            join_bot_to_channel(slack, bridge_bot_id, channel['id'])
-            seen_channels.append(channel['id'])
-            await message.respond(f"Adding {channel['name']}")
-    await opsdroid.memory.put("seen_channels", seen_channels)
+
+    # Get channels that are now in the workspace that we haven't seen before
+    new_channels = get_new_channels(slack, seen_channels)
+
+    # Join the Appservice bot to these new channels
+    for channel_id in new_channels:
+        join_bot_to_channel(slack, bridge_bot_id, channel_id)
+
+    # Create a new matrix room for this channel
+
+    # Invite the Appservice matrix user to the room
+
+    # Run link command in the appservice admin room
+
+    # Add room to community
+
+    # update the memory with the channels we just processed
+    await opsdroid.memory.put("seen_channels", seen_channels + new_channels)
+
+    await message.respond(f"Finished")
