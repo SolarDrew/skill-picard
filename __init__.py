@@ -5,6 +5,8 @@ from opsdroid.matchers import match_crontab
 import slacker
 from slacker import Slacker
 
+from matrix_client.errors import MatrixRequestError
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -29,6 +31,14 @@ def join_bot_to_channel(slack, bot_id, channel_id):
             _LOGGER.exception("Invite failed")
 
 
+def get_channel_mapping(slack):
+
+    response = slack.channels.list()
+    channels = response.body['channels']
+
+    return {c['id']: c['name'] for c in channels}
+
+
 def get_new_channels(slack, seen_channels):
     """
     Get channels in the workspace that are not in seen_channels
@@ -44,6 +54,61 @@ def get_new_channels(slack, seen_channels):
             new_channels.append(channel['id'])
 
     return new_channels
+
+
+def get_matrix_connector(opsdroid):
+    """
+    Return the first configured matrix connector.
+    """
+    for conn in opsdroid.connectors:
+        if conn.name == "ConnectorMatrix":
+            return conn
+
+
+async def room_id_if_exists(api, room_alias):
+    """
+    Returns the room id if the room exists or `None` if it doesn't.
+    """
+    try:
+        room_id = await api.get_room_id(room_alias)
+        return room_id['room_id']
+    except MatrixRequestError as e:
+        if e.code != 404:
+            raise e
+        return None
+
+
+async def joined_rooms(api):
+    json = await api._send("GET", "/joined_rooms")
+    return json['joined_rooms']
+
+
+async def is_in_matrix_room(api, room_id):
+    rooms = await joined_rooms(api)
+    return room_id in rooms
+
+
+async def intent_in_room(opsdroid, room):
+    """
+    This function should result in the connector user being in the given room.
+    Irrespective of if that room existed before.
+    """
+
+    connector = get_matrix_connector(opsdroid)
+
+    room_id = room_id_if_exists(connector.api, room)
+
+    if room_id is None:
+        json = await connector.api.create_room(alias=room)
+        room_id = json['room_id']
+        json = await connector.api.join_room(room_id)
+    else:
+        is_in_room = is_in_matrix_room(connector.api, room_id)
+
+        if not is_in_room:
+            json = await connector.api.join_room(room_id)
+
+    return room_id
 
 
 # @match_crontab('* * * * *')
@@ -67,17 +132,24 @@ async def mirror_slack_channels(opsdroid, config, message):
     # Get channels that are now in the workspace that we haven't seen before
     new_channels = get_new_channels(slack, seen_channels)
 
-    # Join the Appservice bot to these new channels
     for channel_id in new_channels:
+        # Join the Appservice bot to these new channels
         join_bot_to_channel(slack, bridge_bot_id, channel_id)
 
-    # Create a new matrix room for this channel
+        # Create a new matrix room for this channels
+        channel_name = get_channel_mapping(slack)[channel_id]
+        prefix = config['room_prefix']
+        server_name = config['server_name']
+        room_alias = f"#{prefix}{channel_name}:{server_name}"
+        room_id = await intent_in_room(opsdroid, room_alias)
 
-    # Invite the Appservice matrix user to the room
+        # Invite the Appservice matrix user to the room
+        # TODO: will fail if already in room
+        await opsdroid.connector.api.invite_user(room_id, config['as_userid'])
 
-    # Run link command in the appservice admin room
+        # Run link command in the appservice admin room
 
-    # Add room to community
+        # Add room to community
 
     # update the memory with the channels we just processed
     await opsdroid.memory.put("seen_channels", seen_channels + new_channels)
