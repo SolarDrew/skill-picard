@@ -144,8 +144,8 @@ async def mirror_slack_channels(opsdroid, config, message):
         room_id = await intent_in_room(opsdroid, room_alias)
 
         # Invite the Appservice matrix user to the room
-        # TODO: will fail if already in room
-        await opsdroid.connector.api.invite_user(room_id, config['as_userid'])
+        if not config['as_userid'] in await opsdroid.connector.api.get_room_members(room_id):
+            await opsdroid.connector.api.invite_user(room_id, config['as_userid'])
 
         # Run link command in the appservice admin room
 
