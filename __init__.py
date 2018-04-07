@@ -140,7 +140,7 @@ async def mirror_slack_channels(opsdroid, config, message):
         channel_name = get_channel_mapping(slack)[channel_id]
         prefix = config['room_prefix']
         server_name = config['server_name']
-        room_alias = f"#{prefix}{channel_name}:{server_name}"
+        room_alias = f"#{prefix}-{channel_name}:{server_name}"
         room_id = await intent_in_room(opsdroid, room_alias)
 
         # Invite the Appservice matrix user to the room
