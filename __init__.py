@@ -96,17 +96,17 @@ async def intent_in_room(opsdroid, room):
 
     connector = get_matrix_connector(opsdroid)
 
-    room_id = room_id_if_exists(connector.api, room)
+    room_id = room_id_if_exists(connector.connection, room)
 
     if room_id is None:
-        json = await connector.api.create_room(alias=room)
+        json = await connector.connection.create_room(alias=room)
         room_id = json['room_id']
-        json = await connector.api.join_room(room_id)
+        json = await connector.connection.join_room(room_id)
     else:
-        is_in_room = is_in_matrix_room(connector.api, room_id)
+        is_in_room = is_in_matrix_room(connector.connection, room_id)
 
         if not is_in_room:
-            json = await connector.api.join_room(room_id)
+            json = await connector.connection.join_room(room_id)
 
     return room_id
 
