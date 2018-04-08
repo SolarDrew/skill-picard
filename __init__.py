@@ -88,7 +88,7 @@ async def is_in_matrix_room(api, room_id):
     return room_id in rooms
 
 
-async def intent_in_room(opsdroid, room):
+async def intent_self_in_room(opsdroid, room):
     """
     This function should result in the connector user being in the given room.
     Irrespective of if that room existed before.
@@ -110,6 +110,12 @@ async def intent_in_room(opsdroid, room):
 
     return room_id
 
+
+async def intent_user_in_room(opsdroid, user, room):
+    """
+    Ensure a user is in a room.
+    """
+    await opsdroid.connector.api.invite_user(room_id, config['as_userid'])
 
 # @match_crontab('* * * * *')
 @match_regex('slack')
@@ -141,7 +147,7 @@ async def mirror_slack_channels(opsdroid, config, message):
         prefix = config['room_prefix']
         server_name = config['server_name']
         room_alias = f"#{prefix}{channel_name}:{server_name}"
-        room_id = await intent_in_room(opsdroid, room_alias)
+        room_id = await intent_self_in_room(opsdroid, room_alias)
 
         # Invite the Appservice matrix user to the room
         # TODO: will fail if already in room
