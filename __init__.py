@@ -69,6 +69,8 @@ async def room_id_if_exists(api, room_alias):
     """
     Returns the room id if the room exists or `None` if it doesn't.
     """
+    if room_alias.startswith('!'):
+        return room_alias
     try:
         room_id = await api.get_room_id(room_alias)
         return room_id['room_id']
@@ -88,7 +90,7 @@ async def is_in_matrix_room(api, room_id):
     return room_id in rooms
 
 
-async def intent_in_room(opsdroid, room):
+async def intent_self_in_room(opsdroid, room):
     """
     This function should result in the connector user being in the given room.
     Irrespective of if that room existed before.
@@ -114,10 +116,22 @@ async def intent_in_room(opsdroid, room):
 async def intent_user_in_room(opsdroid, user, room):
     """
     Ensure a user is in a room.
-    """
-    await opsdroid.connector.api.invite_user(room_id, config['as_userid'])
 
-# @match_crontab('* * * * *')
+    If the room doesn't exist or the invite fails, then return None
+    """
+    connector = get_matrix_connector(opsdroid)
+    room_id = room_id_if_exists(connector.connection, room)
+
+    if room_id is not None:
+        try:
+            await connector.api.invite_user(room_id, user)
+        except MatrixRequestError:
+            room_id = None
+
+    return room_id
+
+
+#  @match_crontab('* * * * *')
 @match_regex('slack')
 async def mirror_slack_channels(opsdroid, config, message):
     """
@@ -150,8 +164,10 @@ async def mirror_slack_channels(opsdroid, config, message):
         room_id = await intent_self_in_room(opsdroid, room_alias)
 
         # Invite the Appservice matrix user to the room
-        if not config['as_userid'] in await opsdroid.connector.api.get_room_members(room_id):
-            await opsdroid.connector.api.invite_user(room_id, config['as_userid'])
+        room_id = await intent_user_in_room(opsdroid, config['as_userid'], room_id)
+        if room_id is None:
+            # If the room dosen't exist. Panic.
+            return
 
         # Run link command in the appservice admin room
 
