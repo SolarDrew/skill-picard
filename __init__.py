@@ -73,7 +73,7 @@ async def room_id_if_exists(api, room_alias):
         return room_alias
     try:
         room_id = await api.get_room_id(room_alias)
-        return room_id['room_id']
+        return room_id
     except MatrixRequestError as e:
         if e.code != 404:
             raise e
@@ -98,11 +98,15 @@ async def intent_self_in_room(opsdroid, room):
 
     connector = get_matrix_connector(opsdroid)
 
-    room_id = room_id_if_exists(connector.connection, room)
+    room_id = await room_id_if_exists(connector.connection, room)
 
     if room_id is None:
-        json = await connector.connection.create_room(alias=room)
-        room_id = json['room_id']
+        logging.debug(room)
+        try:
+            json = await connector.connection.create_room(alias=room)
+            room_id = json['room_id']
+        except MatrixRequestError:
+            room_id = await connector.connection.get_room_id(room)
         json = await connector.connection.join_room(room_id)
     else:
         is_in_room = is_in_matrix_room(connector.connection, room_id)
@@ -120,11 +124,11 @@ async def intent_user_in_room(opsdroid, user, room):
     If the room doesn't exist or the invite fails, then return None
     """
     connector = get_matrix_connector(opsdroid)
-    room_id = room_id_if_exists(connector.connection, room)
+    room_id = await room_id_if_exists(connector.connection, room)
 
     if room_id is not None:
         try:
-            await connector.api.invite_user(room_id, user)
+            await connector.connection.invite_user(room_id, user)
         except MatrixRequestError:
             room_id = None
 
