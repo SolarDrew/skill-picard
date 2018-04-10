@@ -1,4 +1,4 @@
-# skill-matrixslack
+# skill-picard
 
 This opsdroid skill enables the bridging of a slack team to a matrix communtiy. It uses the
 [slack appservice](https://github.com/matrix-org/matrix-appservice-slack) to
@@ -7,10 +7,10 @@ rooms on matrix for these new channels and then configures the appservice to
 bridge them. It also will add these rooms to a matrix communtiy.
 
 
-** This only works with
+**This only works with
 [this](https://github.com/matrix-org/matrix-appservice-slack/pull/66) version of
 the appservice, as it is assumed you will exceed your slack integration limit
-using the webhooks version of the bridge on the released version. **
+using the webhooks version of the bridge on the released version.**
 
 
 For the community features to work you will need
@@ -59,3 +59,8 @@ configuration options for this skill:
   as_userid: # The user ID of the slack AS bot user.
   community_id: # The full ID of the communtiy you want rooms added to
 ```
+
+
+## Why is this called Picard?
+
+He commands the bridge!

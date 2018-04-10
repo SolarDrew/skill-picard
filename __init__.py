@@ -178,9 +178,8 @@ async def admin_of_community(opsdroid, community):
     return community
 
 
-
-#  @match_crontab('* * * * *')
-@match_regex('slack')
+@match_crontab('* * * * *')
+@match_regex('!updatechannels')
 async def mirror_slack_channels(opsdroid, config, message):
     """
     Check what channels exist in the Slack workspace and list them.
