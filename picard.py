@@ -168,7 +168,6 @@ async def admin_of_community(opsdroid, community):
     if profile:
         users = await connector.connection.get_users_in_group(community)
         myself = list(filter(lambda key: key['user_id'] == connector.mxid, users['chunk']))
-        logging.debug(myself)
         if not myself[0]['is_privileged']:
             return None
 
