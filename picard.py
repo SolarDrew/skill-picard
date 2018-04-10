@@ -213,8 +213,9 @@ async def mirror_slack_channels(opsdroid, config, message):
         rooms_in_community = {r['room_id'] for r in response['chunk']}
 
     for channel_id, room_alias in new_channels.items():
+        # Apparently this isn't needed
         # Join the slack bot to these new channels
-        join_bot_to_channel(slack, bridge_bot_id, channel_id)
+        # join_bot_to_channel(slack, bridge_bot_id, channel_id)
 
         # Create a new matrix room for this channels
         room_id = await intent_self_in_room(opsdroid, room_alias)
