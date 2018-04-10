@@ -1,9 +1,10 @@
 import logging
 
+import slacker
+
 from opsdroid.matchers import match_regex
 from opsdroid.matchers import match_crontab
-import slacker
-from slacker import Slacker
+from opsdroid.message import Message
 
 from matrix_client.errors import MatrixRequestError
 
@@ -50,7 +51,7 @@ def get_new_channels(slack, config, seen_channels):
     # Get the new channels we need to process
     new_channels = {}
     token = config['slack_bot_token']
-    slack = Slacker(token)
+    slack = slacker.Slacker(token)
     for channel in channels:
         if channel['id'] not in seen_channels.keys():
             prefix = config['room_prefix']
@@ -146,6 +147,38 @@ async def intent_user_in_room(opsdroid, user, room):
     return room_id
 
 
+async def admin_of_community(opsdroid, community):
+    """
+    Ensure the community exists, and the user is admin otherwise return None.
+    """
+
+    connector = get_matrix_connector(opsdroid)
+
+    # Check the Python SDK speaks communities
+    if not hasattr(connector.connection, "create_group"):
+        return None
+
+    # Check community exists
+    try:
+        profile = await connector.connection.get_group_profile(community)
+    except MatrixRequestError as e:
+        if e.code != 404:
+            raise e
+        else:
+            group = await connector.connection.create_group(community.split(':')[0][1:])
+            return group['group_id']
+
+    # Ensure we are admin
+    if profile:
+        users = await connector.connection.get_users_in_group(community)
+        myself = list(filter(lambda key: key['user_id'] == connector.mxid, users['chunk']))
+        if not myself['is_privileged']:
+            return None
+
+    return community
+
+
+
 #  @match_crontab('* * * * *')
 @match_regex('slack')
 async def mirror_slack_channels(opsdroid, config, message):
@@ -155,9 +188,15 @@ async def mirror_slack_channels(opsdroid, config, message):
 
     conn = get_matrix_connector(opsdroid)
 
+    if not message:
+        message = Message("",
+                          None,
+                          config.get("room", conn.default_room),
+                          conn)
+
     token = config['slack_bot_token']
     u_token = config['slack_user_token']
-    slack = Slacker(token)
+    slack = slacker.Slacker(token)
 
     # Get userid for bot user
     bridge_bot_id = config['bridge_bot_name']
@@ -170,40 +209,52 @@ async def mirror_slack_channels(opsdroid, config, message):
     # Get channels that are now in the workspace that we haven't seen before
     new_channels = get_new_channels(slack, config, seen_channels)
 
+    # Ensure that the community exists and we are admin
+    community = admin_of_community(opsdroid, config['community_id'])
+
+    # Get a list of rooms currently in the community
+    if community:
+        response = await conn.connection.get_rooms_in_group(community)
+        rooms_in_community = {r['room_id'] for r in response['chunk']}
+    else:
+        rooms_in_community = {}
+
     for channel_id, room_alias in new_channels.items():
-        # Join the Appservice bot to these new channels
+        # Join the slack bot to these new channels
         join_bot_to_channel(slack, bridge_bot_id, channel_id)
 
         # Create a new matrix room for this channels
         room_id = await intent_self_in_room(opsdroid, room_alias)
-        # Make room publicly joinable
-        logging.debug(room_alias)
-        await conn.connection.send_state_event(room_id,
-                                               'm.room.join_rules',
-                                               content={'join_rule': 'public'})
 
-        # Invite the Appservice matrix user to the room
-        room_id = await intent_user_in_room(opsdroid, config['as_userid'], room_id)
-        logging.debug(f"2: {room_id}")
-        if room_id is None:
-            # If the room dosen't exist. Panic.
-            return
-
-        # Run link command in the appservice admin room
-        await message.respond(f"link --channel_id {channel_id} --room {room_id} --slack_bot_token {token} --slack_user_token {u_token}", room='bridge')
-        # Add room to community
-        community = '+botdev:testmatrix.home.cadair.com'
-        response = await conn.connection.get_rooms_in_group(community)
-        ids = [r['room_id'] for r in response['chunk']]
-        logging.debug(ids)
-        if room_id not in ids:
-            await conn.connection.add_room_to_group(community, room_id)
         # Change the room name to something sane
         await conn.connection.set_room_name(room_id, room_alias.split(':')[0][1:])
 
+        # Make room publicly joinable
+        try:
+            await conn.connection.send_state_event(room_id,
+                                                   'm.room.join_rules',
+                                                   content={'join_rule': 'public'})
+        except Exception:
+            logging.exception("Could not make room publicly joinable")
+            message.respond(f"ERROR: Could not make {room_alias} publically joinable.")
+
+        # Invite the Appservice matrix user to the room
+        room_id = await intent_user_in_room(opsdroid, config['as_userid'], room_id)
+        if room_id is None:
+            message.respond(f"ERROR: Could not invite appservice bot to {room_alias}, skipping channel.")
+            continue
+
+        # Run link command in the appservice admin room
+        await message.respond(
+            f"link --channel_id {channel_id} --room {room_id} --slack_bot_token {token} --slack_user_token {u_token}",
+            room='bridge')
+
+        # Add room to community
+        if room_id not in rooms_in_community:
+            await conn.connection.add_room_to_group(community, room_id)
+
+        message.respond(f"Finished Adding room {room_alias}")
+
     # update the memory with the channels we just processed
-    logging.debug(f"+++++++\n{seen_channels}\n{new_channels}+++++++")
     seen_channels.update(new_channels)
     await opsdroid.memory.put("seen_channels", seen_channels)
-
-    await message.respond(f"Finished")
