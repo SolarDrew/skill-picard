@@ -11,6 +11,10 @@ None
 ```
 - name: matrixslack
   repo: https://github.com/SolarDrew/skill-matrixslack.git
-  slack_token: ...
-  bridge_bot_name: ...
+  slack_bot_token: #  Bot User OAuth Access Token"
+  slack_user_token: #  OAuth Access Token 
+  bridge_bot_name: oabot
+  room_prefix: # Matrix room name prefix (probably the name of your slack team)
+  server_name: # Remote part of your matrix ID
+  as_userid: # The user ID of the slack AS bot user.
 ```
