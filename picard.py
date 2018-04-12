@@ -215,7 +215,10 @@ async def mirror_slack_channels(opsdroid, config, message):
     for channel_id, room_alias in new_channels.items():
         # Apparently this isn't needed
         # Join the slack bot to these new channels
-        # join_bot_to_channel(slack, bridge_bot_id, channel_id)
+        try:
+            join_bot_to_channel(slack, bridge_bot_id, channel_id)
+        except Exception:
+            pass
 
         # Create a new matrix room for this channels
         room_id = await intent_self_in_room(opsdroid, room_alias)
@@ -252,3 +255,4 @@ async def mirror_slack_channels(opsdroid, config, message):
     # update the memory with the channels we just processed
     seen_channels.update(new_channels)
     await opsdroid.memory.put("seen_channels", seen_channels)
+    await message.respond(f"Finished all")
