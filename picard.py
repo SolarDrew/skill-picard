@@ -50,8 +50,6 @@ def get_new_channels(slack, config, seen_channels):
 
     # Get the new channels we need to process
     new_channels = {}
-    token = config['slack_bot_token']
-    slack = slacker.Slacker(token)
     for channel in channels:
         if channel['id'] not in seen_channels.keys():
             prefix = config['room_prefix']
