@@ -182,7 +182,7 @@ async def user_is_room_admin(opsdroid, room_alias, mxid):
     room_id = await room_id_if_exists(connector.connection, room_alias)
 
     power_levels = await connector.connection.get_power_levels(room_id)
-    user_pl = power_levels['users'][mxid]
+    user_pl = power_levels['users'].get(mxid, None)
 
     # If already admin, skip
     if user_pl == 100:
