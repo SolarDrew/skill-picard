@@ -54,10 +54,14 @@ configuration options for this skill:
   slack_bot_token: #  Bot User OAuth Access Token
   slack_user_token: #  OAuth Access Token 
   bridge_bot_name: # The username of the bot in your team
-  room_prefix: # Matrix room name prefix (probably the name of your slack team)
+  room_alias_prefix: # Matrix room alias prefix i.e. "enterprise_"
+  room_name_prefix: # Prefix to add to the room name (defaults to room_alias_prefix)
   server_name: # Remote part of your matrix ID
   as_userid: # The user ID of the slack AS bot user.
   community_id: # The full ID of the communtiy you want rooms added to
+  users_as_admin:
+      - "@nechayev:matrix.federation.org"
+      - "@riker:matrix.federation.org"
 ```
 
 

@@ -54,11 +54,11 @@ def get_new_channels(slack, config, seen_channels):
     new_channels = {}
     for channel in channels:
         if channel['id'] not in seen_channels.keys():
-            prefix = config['room_prefix']
+            prefix = config['room_alias_prefix']
             channel_name = get_channel_mapping(slack)[channel['id']]
             server_name = config['server_name']
-            alias = f"#{prefix}-{channel_name}:{server_name}"
-            new_channels[channel['id']] = alias
+            alias = f"#{prefix}{channel_name}:{server_name}"
+            new_channels[channel['id']] = (channel_name, alias)
 
     return new_channels
 
@@ -174,6 +174,24 @@ async def admin_of_community(opsdroid, community):
     return community
 
 
+async def user_is_room_admin(opsdroid, room_alias, mxid):
+    """
+    Ensure a user is admin PL 100 in room
+    """
+    connector = get_matrix_connector(opsdroid)
+    room_id = await room_id_if_exists(connector.connection, room_alias)
+
+    power_levels = await connector.connection.get_power_levels(room_id)
+    user_pl = power_levels['users'][mxid]
+
+    # If already admin, skip
+    if user_pl == 100:
+        return
+
+    power_levels['users'][mxid] = 100
+    await connector.connection.set_power_levels(room_id, power_levels)
+
+
 @match_crontab('* * * * *')
 @match_regex('!updatechannels')
 async def mirror_slack_channels(opsdroid, config, message):
@@ -207,12 +225,18 @@ async def mirror_slack_channels(opsdroid, config, message):
     # Ensure that the community exists and we are admin
     community = await admin_of_community(opsdroid, config['community_id'])
 
+    # Get the room name prefix
+    room_name_prefix = config.get("room_name_prefix", config["room_alias_prefix"])
+
+    # Get the users to be made admin in the matrix room
+    users_as_admin = config.get("users_as_admin", [])
+
     # Get a list of rooms currently in the community
     if community:
         response = await conn.connection.get_rooms_in_group(community)
         rooms_in_community = {r['room_id'] for r in response['chunk']}
 
-    for channel_id, room_alias in new_channels.items():
+    for channel_id, (channel_name, room_alias) in new_channels.items():
         # Apparently this isn't needed
         # Join the slack bot to these new channels
         join_bot_to_channel(config, bridge_bot_id, channel_id)
@@ -221,7 +245,8 @@ async def mirror_slack_channels(opsdroid, config, message):
         room_id = await intent_self_in_room(opsdroid, room_alias)
 
         # Change the room name to something sane
-        await conn.connection.set_room_name(room_id, room_alias.split(':')[0][1:])
+        room_name = f"{room_name_prefix}{channel_name}"
+        await conn.connection.set_room_name(room_id, room_name)
 
         # Make room publicly joinable
         try:
@@ -246,6 +271,11 @@ async def mirror_slack_channels(opsdroid, config, message):
         # Add room to community
         if community and room_id not in rooms_in_community:
             await conn.connection.add_room_to_group(community, room_id)
+
+        # Add admin users
+        for user in users_as_admin:
+            await intent_user_in_room(opsdroid, user, room_id)
+            await user_is_room_admin(opsdroid, room_id, user)
 
         await message.respond(f"Finished Adding room {room_alias}")
 
