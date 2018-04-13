@@ -19,13 +19,13 @@ def get_room_members(slack, channel_id):
     return resp.body['members']
 
 
-def join_bot_to_channel(config, bot_id, channel_id):
+def join_bot_to_channel(bot_slack, config, bot_id, channel_id):
     """
     Invite the bot to the channel if the bot is not already in the channel.
     """
     u_token = config['slack_user_token']
     slack = slacker.Slacker(u_token)
-    members = get_room_members(slack, channel_id)
+    members = get_room_members(bot_slack, channel_id)
     if bot_id not in members:
         # Do an extra guard here just in case
         try:
@@ -239,7 +239,7 @@ async def mirror_slack_channels(opsdroid, config, message):
     for channel_id, (channel_name, room_alias) in new_channels.items():
         # Apparently this isn't needed
         # Join the slack bot to these new channels
-        join_bot_to_channel(config, bridge_bot_id, channel_id)
+        join_bot_to_channel(slack, config, bridge_bot_id, channel_id)
 
         # Create a new matrix room for this channels
         room_id = await intent_self_in_room(opsdroid, room_alias)
