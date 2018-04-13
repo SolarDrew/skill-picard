@@ -270,7 +270,10 @@ async def mirror_slack_channels(opsdroid, config, message):
 
         # Add room to community
         if community and room_id not in rooms_in_community:
-            await conn.connection.add_room_to_group(community, room_id)
+            try:
+                await conn.connection.add_room_to_group(community, room_id)
+            except Exception:
+                _LOGGER.exception(f"Failed to add {room_alias} to {community}.")
 
         # Add admin users
         for user in users_as_admin:
