@@ -236,11 +236,12 @@ async def configure_room_power_levels(opsdroid, config, room_alias):
         await intent_user_in_room(opsdroid, user, room_id)
         power_levels = await user_is_room_admin(power_levels, room_id, user)
 
-    if config['room_pl_0']:
+    room_pl_0 = config.get("room_pl_0", False)
+    if room_pl_0:
         power_levels = await room_notifications_pl0(power_levels, room_id)
 
     # Only actually modify room state if we need to
-    if users_as_admin or config['room_pl_0']:
+    if users_as_admin or room_pl_0:
         await set_power_levels(opsdroid, room_id, power_levels)
 
 
