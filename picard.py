@@ -326,6 +326,13 @@ async def mirror_slack_channels(opsdroid, config, message):
             except Exception:
                 _LOGGER.exception(f"Failed to add {room_alias} to {community}.")
 
+        if community:
+            all_users = await conn.connection.get_users_in_group(community)
+            for user in all_users['chunk']:
+                # await conn.connection.invite_user(room_id, user['user_id'])
+                await intent_user_in_room(opsdroid, user['user_id'], room_id)
+
+
         # Make all the changes to room power levels, for both @room and admins
         await configure_room_power_levels(opsdroid, config, room_id)
 
