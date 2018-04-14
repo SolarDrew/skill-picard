@@ -174,22 +174,74 @@ async def admin_of_community(opsdroid, community):
     return community
 
 
-async def user_is_room_admin(opsdroid, room_alias, mxid):
+"""
+Break up all the power level modifications so we only inject one state event
+into the room.
+"""
+
+
+async def set_power_levels(opsdroid, room_alias, power_levels):
+    connector = get_matrix_connector(opsdroid)
+    room_id = await room_id_if_exists(connector.connection, room_alias)
+    return await connector.connection.set_power_levels(room_id, power_levels)
+
+
+async def get_power_levels(opsdroid, room_alias):
+    connector = get_matrix_connector(opsdroid)
+    room_id = await room_id_if_exists(connector.connection, room_alias)
+
+    return await connector.connection.get_power_levels(room_id)
+
+
+async def user_is_room_admin(power_levels, room_alias, mxid):
     """
-    Ensure a user is admin PL 100 in room
+    Modify power_levels so user is admin
+    """
+    user_pl = power_levels['users'].get(mxid, None)
+
+    # If already admin, skip
+    if user_pl != 100:
+        power_levels['users'][mxid] = 100
+
+    return power_levels
+
+
+async def room_notifications_pl0(power_levels, room_alias):
+    """
+    Set the power levels for @room notifications to 0
+    """
+
+    notifications = power_levels.get('notifications', {})
+    notifications['room'] = 0
+
+    power_levels['notifications'] = notifications
+
+    return power_levels
+
+
+async def configure_room_power_levels(opsdroid, config, room_alias):
+    """
+    Do all the power level related stuff.
     """
     connector = get_matrix_connector(opsdroid)
     room_id = await room_id_if_exists(connector.connection, room_alias)
 
-    power_levels = await connector.connection.get_power_levels(room_id)
-    user_pl = power_levels['users'].get(mxid, None)
+    # Get the users to be made admin in the matrix room
+    users_as_admin = config.get("users_as_admin", [])
 
-    # If already admin, skip
-    if user_pl == 100:
-        return
+    power_levels = await get_power_levels(opsdroid, room_id)
 
-    power_levels['users'][mxid] = 100
-    await connector.connection.set_power_levels(room_id, power_levels)
+    # Add admin users
+    for user in users_as_admin:
+        await intent_user_in_room(opsdroid, user, room_id)
+        power_levels = await user_is_room_admin(power_levels, room_id, user)
+
+    if config['room_pl_0']:
+        power_levels = await room_notifications_pl0(power_levels, room_id)
+
+    # Only actually modify room state if we need to
+    if users_as_admin or config['room_pl_0']:
+        await set_power_levels(opsdroid, room_id, power_levels)
 
 
 @match_crontab('* * * * *')
@@ -223,13 +275,11 @@ async def mirror_slack_channels(opsdroid, config, message):
     new_channels = get_new_channels(slack, config, seen_channels)
 
     # Ensure that the community exists and we are admin
+    # Will return None if we don't have the groups API PR
     community = await admin_of_community(opsdroid, config['community_id'])
 
     # Get the room name prefix
     room_name_prefix = config.get("room_name_prefix", config["room_alias_prefix"])
-
-    # Get the users to be made admin in the matrix room
-    users_as_admin = config.get("users_as_admin", [])
 
     # Get a list of rooms currently in the community
     if community:
@@ -275,15 +325,14 @@ async def mirror_slack_channels(opsdroid, config, message):
             except Exception:
                 _LOGGER.exception(f"Failed to add {room_alias} to {community}.")
 
-        # Add admin users
-        for user in users_as_admin:
-            await intent_user_in_room(opsdroid, user, room_id)
-            await user_is_room_admin(opsdroid, room_id, user)
+        # Make all the changes to room power levels, for both @room and admins
+        await configure_room_power_levels(opsdroid, config, room_id)
 
         await message.respond(f"Finished Adding room {room_alias}")
 
-    # update the memory with the channels we just processed
-    seen_channels.update(new_channels)
-    await opsdroid.memory.put("seen_channels", seen_channels)
     if new_channels:
-        await message.respond(f"Finished all")
+        # update the memory with the channels we just processed
+        seen_channels.update(new_channels)
+        await opsdroid.memory.put("seen_channels", seen_channels)
+
+        await message.respond(f"Finished adding all rooms.")
