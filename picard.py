@@ -356,7 +356,7 @@ async def mirror_slack_channels(opsdroid, config, message):
         # Run link command in the appservice admin room
         await message.respond(
             f"link --channel_id {channel_id} --room {room_id}"
-            " --slack_bot_token {token} --slack_user_token {u_token}",
+            f" --slack_bot_token {token} --slack_user_token {u_token}",
             room='bridge')
 
         # Add room to community
