@@ -1,5 +1,7 @@
+import json
 import logging
 
+import aiohttp
 import slacker
 
 from opsdroid.matchers import match_regex
@@ -245,6 +247,39 @@ async def configure_room_power_levels(opsdroid, config, room_alias):
         await set_power_levels(opsdroid, room_id, power_levels)
 
 
+async def upload_image_to_matrix(self, image_url):
+    """
+    Given a URL upload the image to the homeserver for the given user.
+    """
+    async with aiohttp.ClientSession() as session:
+        async with session.request("GET", image_url) as resp:
+            data = await resp.read()
+
+    json = await self.api.media_upload(data, resp.content_type)
+
+    return json['content_uri']
+
+
+async def set_room_avatar(opsdroid, room_id, avatar_url):
+    """
+    Set a room avatar.
+    """
+    connector = get_matrix_connector(opsdroid)
+
+    if not avatar_url.startswith("mxc"):
+        avatar_url = await upload_image_to_matrix(avatar_url)
+
+    # Set state event
+    content = {
+        "url": avatar_url
+    }
+    content = json.dumps(content)
+
+    return await connector.connection.send_state_event(room_id,
+                                                       "m.room.avatar",
+                                                       content)
+
+
 @match_crontab('* * * * *')
 @match_regex('!updatechannels')
 async def mirror_slack_channels(opsdroid, config, message):
@@ -277,7 +312,7 @@ async def mirror_slack_channels(opsdroid, config, message):
 
     # Ensure that the community exists and we are admin
     # Will return None if we don't have the groups API PR
-    community = await admin_of_community(opsdroid, config['community_id'])
+    community = await admin_of_community(opsdroid, config["community_id"])
 
     # Get the room name prefix
     room_name_prefix = config.get("room_name_prefix", config["room_alias_prefix"])
@@ -299,11 +334,15 @@ async def mirror_slack_channels(opsdroid, config, message):
         room_name = f"{room_name_prefix}{channel_name}"
         await conn.connection.set_room_name(room_id, room_name)
 
+        avatar_url = config.get("room_avatar_url", None)
+        if avatar_url:
+            await set_room_avatar(opsdroid, room_id, avatar_url)
+
         # Make room publicly joinable
         try:
             await conn.connection.send_state_event(room_id,
-                                                   'm.room.join_rules',
-                                                   content={'join_rule': 'public'})
+                                                   "m.room.join_rules",
+                                                   content={'join_rule': "public"})
         except Exception:
             logging.exception("Could not make room publicly joinable")
             await message.respond(f"ERROR: Could not make {room_alias} publically joinable.")
@@ -311,12 +350,14 @@ async def mirror_slack_channels(opsdroid, config, message):
         # Invite the Appservice matrix user to the room
         room_id = await intent_user_in_room(opsdroid, config['as_userid'], room_id)
         if room_id is None:
-            await message.respond(f"ERROR: Could not invite appservice bot to {room_alias}, skipping channel.")
+            await message.respond(f"ERROR: Could not invite appservice bot"
+                                  "to {room_alias}, skipping channel.")
             continue
 
         # Run link command in the appservice admin room
         await message.respond(
-            f"link --channel_id {channel_id} --room {room_id} --slack_bot_token {token} --slack_user_token {u_token}",
+            f"link --channel_id {channel_id} --room {room_id}"
+            " --slack_bot_token {token} --slack_user_token {u_token}",
             room='bridge')
 
         # Add room to community

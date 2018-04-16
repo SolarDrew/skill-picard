@@ -64,6 +64,7 @@ configuration options for this skill:
       - "@riker:matrix.federation.org"
   room_pl_0: false # Enable everyone to send @room notifications in matrix. (This enables @channel to work in both slack and matrix)
   invite_communtiy_to_rooms: false # Invite all members of the communtiy to new rooms
+  room_avatar_url: null # http or mxc url for the room avatar
 ```
 
 
