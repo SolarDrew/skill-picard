@@ -273,7 +273,6 @@ async def set_room_avatar(opsdroid, room_id, avatar_url):
     content = {
         "url": avatar_url
     }
-    content = json.dumps(content)
 
     return await connector.connection.send_state_event(room_id,
                                                        "m.room.avatar",
