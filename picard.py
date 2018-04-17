@@ -1,4 +1,3 @@
-import json
 import logging
 
 import aiohttp
@@ -37,7 +36,9 @@ def join_bot_to_channel(bot_slack, config, bot_id, channel_id):
 
 
 def get_channel_mapping(slack):
-
+    """
+    Map slack channel ids to their names
+    """
     response = slack.channels.list()
     channels = response.body['channels']
 
@@ -60,7 +61,8 @@ def get_new_channels(slack, config, seen_channels):
             channel_name = get_channel_mapping(slack)[channel['id']]
             server_name = config['server_name']
             alias = f"#{prefix}{channel_name}:{server_name}"
-            new_channels[channel['id']] = (channel_name, alias)
+            topic = channel['topic']['value']
+            new_channels[channel['id']] = (channel_name, alias, topic)
 
     return new_channels
 
@@ -90,8 +92,8 @@ async def room_id_if_exists(api, room_alias):
 
 
 async def joined_rooms(api):
-    json = await api._send("GET", "/joined_rooms")
-    return json['joined_rooms']
+    respjson = await api._send("GET", "/joined_rooms")
+    return respjson['joined_rooms']
 
 
 async def is_in_matrix_room(api, room_id):
@@ -111,16 +113,16 @@ async def intent_self_in_room(opsdroid, room):
 
     if room_id is None:
         try:
-            json = await connector.connection.create_room(alias=room.split(':')[0][1:])
-            room_id = json['room_id']
+            respjson = await connector.connection.create_room(alias=room.split(':')[0][1:])
+            room_id = respjson['room_id']
         except MatrixRequestError:
             room_id = await connector.connection.get_room_id(room)
-        json = await connector.connection.join_room(room_id)
+        respjson = await connector.connection.join_room(room_id)
     else:
         is_in_room = is_in_matrix_room(connector.connection, room_id)
 
         if not is_in_room:
-            json = await connector.connection.join_room(room_id)
+            respjson = await connector.connection.join_room(room_id)
 
     return room_id
 
@@ -247,6 +249,11 @@ async def configure_room_power_levels(opsdroid, config, room_alias):
         await set_power_levels(opsdroid, room_id, power_levels)
 
 
+"""
+Helpers for room avatar
+"""
+
+
 async def upload_image_to_matrix(self, image_url):
     """
     Given a URL upload the image to the homeserver for the given user.
@@ -255,9 +262,9 @@ async def upload_image_to_matrix(self, image_url):
         async with session.request("GET", image_url) as resp:
             data = await resp.read()
 
-    json = await self.api.media_upload(data, resp.content_type)
+    respjson = await self.api.media_upload(data, resp.content_type)
 
-    return json['content_uri']
+    return respjson['content_uri']
 
 
 async def set_room_avatar(opsdroid, room_id, avatar_url):
@@ -321,7 +328,7 @@ async def mirror_slack_channels(opsdroid, config, message):
         response = await conn.connection.get_rooms_in_group(community)
         rooms_in_community = {r['room_id'] for r in response['chunk']}
 
-    for channel_id, (channel_name, room_alias) in new_channels.items():
+    for channel_id, (channel_name, room_alias, topic) in new_channels.items():
         # Apparently this isn't needed
         # Join the slack bot to these new channels
         join_bot_to_channel(slack, config, bridge_bot_id, channel_id)
@@ -332,6 +339,8 @@ async def mirror_slack_channels(opsdroid, config, message):
         # Change the room name to something sane
         room_name = f"{room_name_prefix}{channel_name}"
         await conn.connection.set_room_name(room_id, room_name)
+        if topic:
+            await conn.connection.set_room_topic(room_id, topic)
 
         avatar_url = config.get("room_avatar_url", None)
         if avatar_url:
