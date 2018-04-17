@@ -56,6 +56,8 @@ def get_new_channels(slack, config, seen_channels):
     # Get the new channels we need to process
     new_channels = {}
     for channel in channels:
+        if channel['is_archived']:
+            continue
         if channel['id'] not in seen_channels.keys():
             prefix = config['room_alias_prefix']
             channel_name = get_channel_mapping(slack)[channel['id']]
