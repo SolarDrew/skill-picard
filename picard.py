@@ -360,8 +360,8 @@ async def mirror_slack_channels(opsdroid, config, message):
         # Invite the Appservice matrix user to the room
         room_id = await intent_user_in_room(opsdroid, config['as_userid'], room_id)
         if room_id is None:
-            await message.respond(f"ERROR: Could not invite appservice bot"
-                                  "to {room_alias}, skipping channel.")
+            await message.respond("ERROR: Could not invite appservice bot"
+                                  f"to {room_alias}, skipping channel.")
             continue
 
         # Run link command in the appservice admin room
