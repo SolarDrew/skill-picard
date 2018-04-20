@@ -28,7 +28,7 @@ All the rooms created or linked by this bridge will be made public.
 ### Configure the Application Service
 To use this you need to setup the 
 [slack appservice](https://github.com/matrix-org/matrix-appservice-slack) on the
-bot API branch
+events API branch
 [here](https://github.com/matrix-org/matrix-appservice-slack/pull/66).
 
 
@@ -57,8 +57,7 @@ of the slack appservice:
        - message.channels
        - message.groups (if you want to bridge private channels)
        
-5. Skip this step if you do not want to bridge files.
-   Click on `OAuth & Permissions` and add the following scopes:
+5. Click on `OAuth & Permissions` and add the following scopes:
 
    - files:read
    - files:write:user
