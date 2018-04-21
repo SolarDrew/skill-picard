@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import quote
 
 import aiohttp
 import slacker
@@ -180,6 +181,15 @@ async def admin_of_community(opsdroid, community):
     return community
 
 
+async def make_community_joinable(opsdroid, community):
+    connector = get_matrix_connector(opsdroid)
+
+    content = {"m.join_policy": {"type": "open"}}
+    await connector.connection._send("PUT", f"groups/{community}/settings/m.join_policy",
+                                     content=content)
+
+
+
 """
 Break up all the power level modifications so we only inject one state event
 into the room.
@@ -307,6 +317,9 @@ async def mirror_slack_channels(opsdroid, config, message):
     u_token = config['slack_user_token']
     slack = slacker.Slacker(token)
 
+    # Make public
+    make_public = config.get("make_public", True)
+
     # Get userid for bot user
     bridge_bot_id = config['bridge_bot_name']
     bridge_bot_id = slack.users.get_user_id(bridge_bot_id)
@@ -348,14 +361,15 @@ async def mirror_slack_channels(opsdroid, config, message):
         if avatar_url:
             await set_room_avatar(opsdroid, room_id, avatar_url)
 
-        # Make room publicly joinable
-        try:
-            await conn.connection.send_state_event(room_id,
-                                                   "m.room.join_rules",
-                                                   content={'join_rule': "public"})
-        except Exception:
-            logging.exception("Could not make room publicly joinable")
-            await message.respond(f"ERROR: Could not make {room_alias} publically joinable.")
+        if make_public:
+            # Make room publicly joinable
+            try:
+                await conn.connection.send_state_event(room_id,
+                                                       "m.room.join_rules",
+                                                       content={'join_rule': "public"})
+            except Exception:
+                logging.exception("Could not make room publicly joinable")
+                await message.respond(f"ERROR: Could not make {room_alias} publically joinable.")
 
         # Invite the Appservice matrix user to the room
         room_id = await intent_user_in_room(opsdroid, config['as_userid'], room_id)
@@ -363,6 +377,9 @@ async def mirror_slack_channels(opsdroid, config, message):
             await message.respond("ERROR: Could not invite appservice bot"
                                   f"to {room_alias}, skipping channel.")
             continue
+
+        # Make all the changes to room power levels, for both @room and admins
+        await configure_room_power_levels(opsdroid, config, room_id)
 
         # Run link command in the appservice admin room
         await message.respond(
@@ -383,9 +400,6 @@ async def mirror_slack_channels(opsdroid, config, message):
                 for user in all_users['chunk']:
                     # await conn.connection.invite_user(room_id, user['user_id'])
                     await intent_user_in_room(opsdroid, user['user_id'], room_id)
-
-        # Make all the changes to room power levels, for both @room and admins
-        await configure_room_power_levels(opsdroid, config, room_id)
 
         await message.respond(f"Finished Adding room {room_alias}")
 
