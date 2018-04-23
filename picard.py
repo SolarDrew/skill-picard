@@ -261,6 +261,51 @@ async def configure_room_power_levels(opsdroid, config, room_alias):
         await set_power_levels(opsdroid, room_id, power_levels)
 
 
+async def get_related_groups(opsdroid, roomid):
+    """
+    Get the m.room.related_groups state from a room
+    """
+    connector = get_matrix_connector(opsdroid)
+    api = connector.connection
+
+    try:
+        json = await api._send("GET", f"/rooms/{roomid}/state/m.room.related_groups")
+        return json['groups']
+    except MatrixRequestError as e:
+        if e.code != 404:
+            raise e
+        else:
+            return []
+
+
+async def set_related_groups(opsdroid, roomid, communities):
+    """
+    Set the m.room.related_groups state from a room
+    """
+    connector = get_matrix_connector(opsdroid)
+    api = connector.connection
+
+    content = {'groups': communities}
+
+    return await api.send_state_event(roomid,
+                                      "m.room.related_groups",
+                                      content)
+
+
+async def update_related_groups(opsdroid, roomid, communities):
+    """
+    Add communities to the existing m.room.related_groups state event.
+    """
+
+    existing_communities = await get_related_groups(opsdroid, roomid)
+
+    existing_communities += communities
+
+    new_groups = list(set(existing_communities))
+
+    return await set_related_groups(opsdroid, roomid, new_groups)
+
+
 """
 Helpers for room avatar
 """
@@ -338,6 +383,8 @@ async def mirror_slack_channels(opsdroid, config, message):
     # Get the room name prefix
     room_name_prefix = config.get("room_name_prefix", config["room_alias_prefix"])
 
+    related_groups = config.get("related_groups", [])
+
     # Get a list of rooms currently in the community
     if community:
         response = await conn.connection.get_rooms_in_group(community)
@@ -380,6 +427,10 @@ async def mirror_slack_channels(opsdroid, config, message):
 
         # Make all the changes to room power levels, for both @room and admins
         await configure_room_power_levels(opsdroid, config, room_id)
+
+        # Update related groups
+        if related_groups:
+            await update_related_groups(opsdroid, room_id, related_groups)
 
         # Run link command in the appservice admin room
         await message.respond(

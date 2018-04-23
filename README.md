@@ -143,6 +143,7 @@ configuration options for this skill:
   make_public: True  # Make the rooms and the community publically joinable
   invite_communtiy_to_rooms: false # Invite all members of the communtiy to new rooms
   room_avatar_url: null # http or mxc url for the room avatar
+  related_groups: # A list of groups to be set as "related groups in all rooms"
 ```
 
 
