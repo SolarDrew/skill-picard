@@ -306,6 +306,20 @@ async def update_related_groups(opsdroid, roomid, communities):
     return await set_related_groups(opsdroid, roomid, new_groups)
 
 
+async def user_in_state(opsdroid, roomid, mxid):
+    """
+    Check to see if the user exists in the state.
+    """
+    connector = get_matrix_connector(opsdroid)
+    api = connector.connection
+
+    state = await api.get_room_state(roomid)
+
+    keys = [s.get("state_key", "") for s in state]
+
+    return mxid in keys
+
+
 """
 Helpers for room avatar
 """
@@ -450,7 +464,9 @@ async def mirror_slack_channels(opsdroid, config, message):
             if config.get('invite_communtiy_to_rooms', False):
                 for user in all_users['chunk']:
                     # await conn.connection.invite_user(room_id, user['user_id'])
-                    await intent_user_in_room(opsdroid, user['user_id'], room_id)
+                    in_room = await user_in_state(opsdroid, room_id, user['user_id'])
+                    if not in_room:
+                        await intent_user_in_room(opsdroid, user['user_id'], room_id)
 
         await message.respond(f"Finished Adding room {room_alias}")
 
