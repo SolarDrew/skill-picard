@@ -428,6 +428,9 @@ async def mirror_slack_channels(opsdroid, config, message):
                 await conn.connection.send_state_event(room_id,
                                                        "m.room.join_rules",
                                                        content={'join_rule': "public"})
+                await conn.connection.send_state_event(room_id,
+                                                       "m.room.history_visibility",
+                                                       content={'history_visibility': "world_readable"})
             except Exception:
                 logging.exception("Could not make room publicly joinable")
                 await message.respond(f"ERROR: Could not make {room_alias} publically joinable.")
@@ -451,6 +454,11 @@ async def mirror_slack_channels(opsdroid, config, message):
             f"link --channel_id {channel_id} --room {room_id}"
             f" --slack_bot_token {token} --slack_user_token {u_token}",
             room='bridge')
+
+        # Invite Users
+        if config.get("users_to_invite", None):
+            for user in config["users_to_invite"]:
+                await intent_user_in_room(opsdroid, user, room_id)
 
         # Add room to community
         if community and room_id not in rooms_in_community:
