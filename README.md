@@ -139,8 +139,10 @@ configuration options for this skill:
   users_as_admin:
       - "@nechayev:matrix.federation.org"
       - "@riker:matrix.federation.org"
+  users_to_invite:
+      - "@_neb_github:matrix.org"
   room_pl_0: false # Enable everyone to send @room notifications in matrix. (This enables @channel to work in both slack and matrix)
-  make_public: True  # Make the rooms and the community publically joinable
+  make_public: True  # Make the rooms and the community publically joinable and set history to viewable by Anyone
   invite_communtiy_to_rooms: false # Invite all members of the communtiy to new rooms
   room_avatar_url: null # http or mxc url for the room avatar
 ```
