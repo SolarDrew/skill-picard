@@ -7,10 +7,7 @@ rooms on matrix for these new channels and then configures the appservice to
 bridge them. It also will add these rooms to a matrix communtiy.
 
 
-**This only works with
-[this](https://github.com/matrix-org/matrix-appservice-slack/pull/66) version of
-the appservice, as it is assumed you will exceed your slack integration limit
-using the webhooks version of the bridge on the released version.**
+**This only works with version >=0.2.0 of the slack appservice, when configured with the Events API.**
 
 
 For the community features to work you will need
