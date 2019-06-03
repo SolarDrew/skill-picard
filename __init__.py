@@ -4,6 +4,8 @@ from opsdroid.matchers import match_regex
 from opsdroid.events import *
 from opsdroid.skill import Skill
 
+from opsdroid.connectors.matrix.events import *
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -11,13 +13,34 @@ _LOGGER = logging.getLogger(__name__)
 class Picard(Skill):
 
     @match_regex("!createroom (?P<name>.+?) (?P<topic>.+?) (?P<desc>.+?)")
-    async def create_new_matrix_channel(self, message):
-        name, topic, desc = message.regex['name'], message.regex['topic'], message.regex['desc']
-        # Enable flair
+    async def matrix_create_room_command(self, message):
         await message.respond('Riker to the Bridge')
+        name, topic, desc = message.regex['name'], message.regex['topic'], message.regex['desc']
 
+        is_public = self.config.set("make_public", False)
+        room_id = await self.create_new_matrix_channel(name, topic, desc, is_public)
+        invite_users = (self.config.get("users_to_invite", []) +
+                        self.config.get('users_to_admin', []))
+
+        await self.invite_to_matrix_room(room_id, invite_users)
+
+        # Invite Command User
+        await self.opsdroid.send(UserInvite(target=room_id,
+                                            user=message.raw_event['sender']))
+
+        await self.make_matrix_admin_from_config(room_id)
+
+        return room_id
+
+    async def create_new_matrix_channel(self, name, topic, desc, is_public=True):
+        """
+        Create a new matrix channel with defaults from config.
+        """
         # Create Room
         room_id = await self.opsdroid.send(NewRoom())
+        if is_public:
+            await self.opsdroid.send(MatrixJoinRules("public"))
+            await self.opsdroid.send(MatrixHistoryVisibility("world_readable"))
 
         # Set Aliases
         if self.config.get("alias_template"):
@@ -32,21 +55,32 @@ class Picard(Skill):
                                               name=name_template.format(name=name)))
 
         # Set Room Image
-        if self.config.get("community_avatar"):
-            url = self.config["community_avatar"]
+        url = self.config.get("room_avatar_url")
+        if url:
             await self.opsdroid.send(RoomImage(Image(url=url), target=room_id))
 
         # Set Room Description
         await self.opsdroid.send(RoomDescription(desc, target=room_id))
 
-        # Invite Users
-        # Invite Command User
-        await self.opsdroid.send(UserInvite(target=room_id,
-                                            user=message.raw_event['sender']))
-        # Invite users in the config
-        if self.config.get("users_to_invite", None):
-            for user in config["users_to_invite"]:
-                await self.opsdroid.send(UserInvite(target=room_id,
-                                                    user=user))
-
         # Add to community
+        # Enable flairs
+
+        return room_id
+
+    async def invite_to_matrix_room(self, room_id, users):
+        """
+        Invite the listed users to the room.
+        """
+        for user in users:
+            await self.opsdroid.send(UserInvite(target=room_id,
+                                                user=user))
+
+    async def make_matrix_admin_from_config(self, room_id):
+        """
+        Read the configuration file and make people in the 'users_as_admin'
+        list admin in the room.
+        """
+        # Make config people admin
+        for user in self.config.get("users_as_admin", []):
+            await self.opsdroid.send(UserRole(target=room_id,
+                                              user=user, role='admin'))
