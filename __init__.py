@@ -4,7 +4,8 @@ from opsdroid.matchers import match_regex
 from opsdroid.events import *
 from opsdroid.skill import Skill
 
-from opsdroid.connectors.matrix.events import *
+from opsdroid.connector.matrix import ConnectorMatrix
+from opsdroid.connector.matrix.events import *
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -12,12 +13,21 @@ _LOGGER = logging.getLogger(__name__)
 
 class Picard(Skill):
 
+    @property
+    def matrix_connector(self):
+        return list(filter(lambda x: isinstance(x, ConnectorMatrix),
+                           self.opsdroid.connectors))[0]
+
+    @property
+    def matrix_api(self):
+        return self.matrix_connector.connection
+
     @match_regex("!createroom (?P<name>.+?) (?P<topic>.+?) (?P<desc>.+?)")
     async def matrix_create_room_command(self, message):
         await message.respond('Riker to the Bridge')
         name, topic, desc = message.regex['name'], message.regex['topic'], message.regex['desc']
 
-        is_public = self.config.set("make_public", False)
+        is_public = self.config.get("make_public", False)
         room_id = await self.create_new_matrix_channel(name, topic, desc, is_public)
         invite_users = (self.config.get("users_to_invite", []) +
                         self.config.get('users_to_admin', []))
@@ -30,6 +40,9 @@ class Picard(Skill):
 
         await self.make_matrix_admin_from_config(room_id)
 
+        if self.config.get("allow_at_room", False):
+            await self.matrix_atroom_pl_0(room_id)
+
         return room_id
 
     async def create_new_matrix_channel(self, name, topic, desc, is_public=True):
@@ -39,8 +52,8 @@ class Picard(Skill):
         # Create Room
         room_id = await self.opsdroid.send(NewRoom())
         if is_public:
-            await self.opsdroid.send(MatrixJoinRules("public"))
-            await self.opsdroid.send(MatrixHistoryVisibility("world_readable"))
+            await self.opsdroid.send(MatrixJoinRules("public", target=room_id))
+            await self.opsdroid.send(MatrixHistoryVisibility("world_readable", target=room_id))
 
         # Set Aliases
         if self.config.get("alias_template"):
@@ -84,3 +97,12 @@ class Picard(Skill):
         for user in self.config.get("users_as_admin", []):
             await self.opsdroid.send(UserRole(target=room_id,
                                               user=user, role='admin'))
+
+    async def matrix_atroom_pl_0(self, room_id):
+        power_levels = await self.matrix_api.get_power_levels(room_id)
+
+        notifications = power_levels.get('notifications', {})
+        notifications['room'] = 0
+        power_levels['notifications'] = notifications
+
+        return await self.opsdroid.send(MatrixPowerLevels(power_levels, target=room_id))
