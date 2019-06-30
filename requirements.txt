@@ -1,0 +1,2 @@
+slacker
+git+https://github.com/tinloaf/matrix-python-sdk@groups
