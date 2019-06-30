@@ -25,7 +25,9 @@ class Picard(Skill):
     @match_regex("!createroom (?P<name>.+?) (?P<topic>.+?) (?P<desc>.+?)")
     async def matrix_create_room_command(self, message):
         await message.respond('Riker to the Bridge')
-        name, topic, desc = message.regex['name'], message.regex['topic'], message.regex['desc']
+        name, topic, desc = (message.regex['name'],
+                             message.regex['topic'],
+                             message.regex['desc'])
 
         is_public = self.config.get("make_public", False)
         room_id = await self.create_new_matrix_channel(name, topic, desc, is_public)
