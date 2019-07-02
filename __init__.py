@@ -5,6 +5,7 @@ from opsdroid.events import *
 from opsdroid.skill import Skill
 
 from opsdroid.connector.matrix import ConnectorMatrix
+from opsdroid.connector.slack import ConnectorSlack
 from opsdroid.connector.matrix.events import *
 
 
@@ -20,6 +21,11 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
 
     @property
     def matrix_connector(self):
+        return list(filter(lambda x: isinstance(x, ConnectorMatrix),
+                           self.opsdroid.connectors))[0]
+
+    @property
+    def slack_connector(self):
         return list(filter(lambda x: isinstance(x, ConnectorMatrix),
                            self.opsdroid.connectors))[0]
 
@@ -58,9 +64,8 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
     @match_regex("!createroom (?P<name>.+?) (?P<topic>.+?)")
     async def on_matrix_create_room_command(self, message):
         await message.respond('Riker to the Bridge')
-        name, topic, desc = (message.regex['name'],
-                             message.regex['topic'],
-                             message.regex['desc'])
+        name, topic = (message.regex['name'],
+                       message.regex['topic'])
 
         is_public = self.config.get("make_public", False)
         matrix_room_id = await self.create_new_matrix_channel(name, topic, is_public)
@@ -70,6 +75,8 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
         # Invite Command User
         await self.opsdroid.send(UserInvite(target=matrix_room_id,
                                             user=message.raw_event['sender']))
+
+        await self.link_room(matrix_room_id, "wibble")
 
         return matrix_room_id
 

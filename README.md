@@ -127,21 +127,20 @@ configuration options for this skill:
   repo: https://github.com/SolarDrew/skill-matrixslack.git
   slack_bot_token: #  Bot User OAuth Access Token
   slack_user_token: #  OAuth Access Token 
-  bridge_bot_name: # The username of the bot in your team
-  room_alias_prefix: # Matrix room alias prefix i.e. "enterprise_"
-  room_name_prefix: # Prefix to add to the room name (defaults to room_alias_prefix)
-  server_name: # Remote part of your matrix ID
-  as_userid: # The user ID of the slack AS bot user.
-  community_id: # The full ID of the communtiy you want rooms added to
+  slack_bot_name: # The username of the bot in your team
+  appservice_bot_mxid: # The matrix ID of the appservice bot
+  room_alias_template: # Matrix room alias prefix i.e. "enterprise_"
+  room_name_template: # Prefix to add to the room name (defaults to room_alias_prefix)
+  room_avatar_url: null # http or mxc url for the room avatar
   users_as_admin:
       - "@nechayev:matrix.federation.org"
       - "@riker:matrix.federation.org"
   users_to_invite:
       - "@_neb_github:matrix.org"
-  room_pl_0: false # Enable everyone to send @room notifications in matrix. (This enables @channel to work in both slack and matrix)
+  allow_at_room: false # Enable everyone to send @room notifications in matrix. (This enables @channel to work in both slack and matrix)
   make_public: True  # Make the rooms and the community publically joinable and set history to viewable by Anyone
+  community_id: # The full ID of the communtiy you want rooms added to
   invite_communtiy_to_rooms: false # Invite all members of the communtiy to new rooms
-  room_avatar_url: null # http or mxc url for the room avatar
   related_groups: # A list of groups to be set as "related groups in all rooms"
 ```
 
