@@ -26,7 +26,7 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
 
     @property
     def slack_connector(self):
-        return list(filter(lambda x: isinstance(x, ConnectorMatrix),
+        return list(filter(lambda x: isinstance(x, ConnectorSlack),
                            self.opsdroid.connectors))[0]
 
     @property
@@ -76,7 +76,14 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
         await self.opsdroid.send(UserInvite(target=matrix_room_id,
                                             user=message.raw_event['sender']))
 
-        await self.link_room(matrix_room_id, "wibble")
+        # Create the corresponding slack channel
+        slack_channel_id = await self.create_slack_channel(name)
+
+        # Link the two rooms
+        await self.link_room(matrix_room_id, slack_channel_id)
+
+        # Set the description of the slack channel
+        await self.set_slack_channel_description(slack_channel_id, topic)
 
         return matrix_room_id
 
