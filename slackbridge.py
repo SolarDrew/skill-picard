@@ -1,4 +1,4 @@
-from opsdroid.events import Message
+from opsdroid.events import Message, UserInvite
 
 
 class SlackBridgeMixin:
@@ -8,7 +8,7 @@ class SlackBridgeMixin:
 
     link_message_template = ("link --channel_id {slack_channel_id}"
                              " --room {matrix_room_id}"
-                             "--slack_bot_token {token}"
+                             " --slack_bot_token {token}"
                              " --slack_user_token {u_token}")
 
     async def link_room(self, matrix_room_id, slack_channel_id):
@@ -21,8 +21,15 @@ class SlackBridgeMixin:
         """
         Send a message to the slack bridge admin room to link this room to slack.
         """
-        token = self.config['slack_bot_token']
-        u_token = self.config['slack_user_token']
+        # Invite the appservice bot to the matrix room
+        await self.invite_appservice_bot(matrix_room_id)
+
+        # Invite the slack event bot to the slack channel
+        await self.invite_slack_event_bot(slack_channel_id)
+
+        # Send the link command
+        token = self.slack_bot_token
+        u_token = self.slack_user_token
 
         message = self.link_message_template.format(**locals())
 
@@ -47,6 +54,9 @@ class SlackBridgeMixin:
         """
         Invite the slack bot to the room so it can listen to messages.
         """
-        await self.opsdroid.send(UserInvite(target=matrix_room_id,
-                                            user=self.config["slack_bot_name"],
-                                            connector=self.slack_connector))
+        bot_name = self.config['slack_bot_name']
+        # Defined in SlackMixin
+        bot_user_id = await self.get_slack_user_id(bot_name)
+
+        # Defined in SlackMixin
+        return await self.invite_user_to_slack_channel(slack_channel_id, bot_user_id)

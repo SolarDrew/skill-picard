@@ -6,6 +6,11 @@ class MatrixMixin:
     """
     Matrix Operations for Picard.
     """
+
+    @property
+    def matrix_api(self):
+        return self.matrix_connector.connection
+
     async def create_new_matrix_channel(self, name, topic, is_public=True):
         """
         Create a new matrix channel with defaults from config.
@@ -19,17 +24,17 @@ class MatrixMixin:
                                                              connector=self.matrix_connector))
 
         # Set Aliases
-        if self.config.get("alias_template"):
-            alias_template = self.config['alias_template']
+        room_alias_template = self.config.get('room_alias_template')
+        if room_alias_template:
             await self.opsdroid.send(RoomAddress(target=matrix_room_id,
-                                                 address=alias_template.format(name=name),
+                                                 address=room_alias_template.format(name=name),
                                                  connector=self.matrix_connector))
 
         # Set Room Name
-        if self.config.get("name_template"):
-            name_template = self.config['name_template']
+        room_name_template = self.config.get('room_name_template')
+        if room_name_template:
             await self.opsdroid.send(RoomName(target=matrix_room_id,
-                                              name=name_template.format(name=name),
+                                              name=room_name_template.format(name=name),
                                               connector=self.matrix_connector))
 
         # Set Room Image
