@@ -60,3 +60,12 @@ class SlackBridgeMixin:
 
         # Defined in SlackMixin
         return await self.invite_user_to_slack_channel(slack_channel_id, bot_user_id)
+
+    async def matrix_room_id_from_slack_channel_name(self, slack_channel_name):
+        """
+        Return the first template alias for the given channel name.
+        """
+        room_alias_template = self.config.get('room_alias_template')[0]
+        room_alias = room_alias_template.format(name=slack_channel_name)
+
+        return await self.room_id_if_exists(room_alias)

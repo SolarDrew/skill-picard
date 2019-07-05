@@ -1,9 +1,12 @@
+import logging
 from contextlib import contextmanager
 
 import slacker
 from aioslacker import Slacker
 
 from opsdroid.events import NewRoom, RoomDescription
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SlackMixin:
@@ -64,9 +67,11 @@ class SlackMixin:
         Invite a user to a channel.
         """
         with self.slacker_user_client as client:
-            resp = await client.channels.invite(slack_channel_id, user_id)
-
-        return resp.body
+            try:
+                resp = await client.channels.invite(slack_channel_id, user_id)
+                return resp.body
+            except slacker.Error as err:
+                _LOGGER.exception(err)
 
     async def get_slack_user_id(self, user_name):
         """
@@ -75,3 +80,14 @@ class SlackMixin:
         # This is bugged in aioslacker, so we reimplement it.
         members = await self.slacker_bot_client.users.list()
         return slacker.get_item_id_by_name(members.body['members'], user_name)
+
+    async def get_slack_channel_list(self):
+        response = await self.slacker_bot_client.channels.list()
+        return response.body['channels']
+
+    async def get_slack_channel_mapping(self):
+        """
+        Map slack channel ids to their channel info dict
+        """
+        channels = await self.get_slack_channel_list()
+        return {c['id']: c for c in channels}
