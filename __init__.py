@@ -55,14 +55,7 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
 
         # Inform users about the new room/channel
         await message.respond(f"Created a new room: #{matrix_room_alias}")
-        await self.opsdroid.send(Message(
-            text="A new room was created! Head to #{matrix_room_alias} to follow the conversation",
-            target=matrix_room_id,
-            connector=self.matrix_connector))
-        await self.opsdroid.send(Message(
-            text="A new room was created! Head to #{slack_channel_name} to follow the conversation",
-            target=slack_channel_id,
-            connector=self.slack_connector))
+        await self.announce_new_room(matrix_room_id, slack_channel_id)
 
         return matrix_room_id
 
