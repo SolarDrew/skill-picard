@@ -1,3 +1,5 @@
+import parse
+
 from opsdroid.events import Message, UserInvite
 
 
@@ -69,3 +71,22 @@ class SlackBridgeMixin:
         room_alias = room_alias_template.format(name=slack_channel_name)
 
         return await self.room_id_if_exists(room_alias)
+
+    async def slack_channel_id_from_matrix_room_id(self, matrix_room_id):
+        """
+        Get the slack channel id based on the canonical alias.
+        """
+        room_state = await self.matrix_api.get_room_state(matrix_room_id)
+        room_state = list(filter(lambda x: x['type'] == "m.room.canonical_alias", room_state))
+        if not room_state:
+            return
+        canonical_alias = room_state[0]['content']['alias']
+        print(canonical_alias)
+
+        room_alias_templates = self.config.get('room_alias_templates', [])
+        if not room_alias_templates:
+            return
+
+        name = parse.parse(room_alias_templates[0], canonical_alias)['name']
+
+        return await self.get_slack_channel_id_from_name(name)

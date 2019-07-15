@@ -2,7 +2,7 @@ import logging
 
 from opsdroid.connector.matrix import ConnectorMatrix
 from opsdroid.connector.slack import ConnectorSlack
-from opsdroid.events import Message, NewRoom, UserInvite
+from opsdroid.events import Message, NewRoom, RoomDescription, UserInvite
 from opsdroid.matchers import match_event, match_regex
 from opsdroid.skill import Skill
 
@@ -92,7 +92,6 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
         """
         React to a new slack channel event.
         """
-        _LOGGER.info(f"Got new room event {channel}")
         # This should be an opsdroid constraint one day
         if channel.connector is not self.slack_connector:
             return
@@ -115,6 +114,28 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
                                                          topic)
 
         await self.announce_new_room(matrix_room_id, channel.target)
+
+    @match_event(RoomDescription)
+    async def on_topic_change(self, topic):
+        """Handle a topic change."""
+
+        if topic.connector is self.matrix_connector:
+            slack_channel_id = await self.slack_channel_id_from_matrix_room_id(topic.target)
+            await self.set_slack_channel_description(slack_channel_id, topic.description)
+
+        elif topic.connector is self.slack_connector:
+            user_id = await self._id_for_slack_user_token()
+            print(user_id, topic.raw_event['user'])
+            if topic.raw_event['user'] == user_id:
+                return
+
+            slack_channel_name = await self.get_slack_channel_name(topic.target)
+            matrix_room_id = await self.matrix_room_id_from_slack_channel_name(slack_channel_name)
+
+            topic.target = matrix_room_id
+            topic.connector = self.matrix_connector
+
+            await self.opsdroid.send(topic)
 
     async def announce_new_room(self, matrix_room_id, slack_channel_id):
         """

@@ -44,14 +44,24 @@ class SlackMixin:
             client.close()
         return _slacker()
 
+    async def _id_for_slack_user_token(self):
+        """
+        The user id of the slack_user_token.
+        """
+        with self.slacker_user_client as client:
+            resp = await client.auth.test()
+            return resp.body['user_id']
+
     async def set_slack_channel_description(self, slack_channel_id, description):
         """
         Set the description or topic of a channel.
         """
         with self.slacker_user_client as client:
-            resp = await client.channels.set_topic(slack_channel_id, description)
-
-        return resp.body['topic']
+            try:
+                resp = await client.channels.set_topic(slack_channel_id, description)
+                return resp.body['topic']
+            except slacker.Error as err:
+                _LOGGER.exception(err)
 
     async def create_slack_channel(self, channel_name):
         """
@@ -98,3 +108,15 @@ class SlackMixin:
         """
         response = await self.slacker_bot_client.channels.info(slack_channel_id)
         return response.body['channel'].get('topic', {}).get('value', '')
+
+    async def get_slack_channel_name(self, slack_channel_id):
+        """
+        Get the topic for a channel.
+        """
+        response = await self.slacker_bot_client.channels.info(slack_channel_id)
+        return response.body['channel']['name']
+
+    async def get_slack_channel_id_from_name(self, slack_channel_name):
+        channel_map = await self.get_slack_channel_mapping()
+        name_to_id = {c['name']: k for k, c in channel_map.items()}
+        return name_to_id[slack_channel_name]
