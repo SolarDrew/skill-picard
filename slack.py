@@ -91,3 +91,10 @@ class SlackMixin:
         """
         channels = await self.get_slack_channel_list()
         return {c['id']: c for c in channels}
+
+    async def get_slack_channel_topic(self, slack_channel_id):
+        """
+        Get the topic for a channel.
+        """
+        response = await self.slacker_bot_client.channels.info(slack_channel_id)
+        return response.body['channel'].get('topic', {}).get('value', '')

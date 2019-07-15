@@ -129,14 +129,18 @@ configuration options for this skill:
   slack_user_token: #  OAuth Access Token 
   slack_bot_name: # The username of the bot in your team
   appservice_bot_mxid: # The matrix ID of the appservice bot
-  room_alias_template: # Matrix room alias prefix i.e. "enterprise_"
-  room_name_template: # Prefix to add to the room name (defaults to room_alias_prefix)
+  # Matrix room alias templates, must be a list, the first one will be set as the canonical alias.
+  # Can include `{name}` to be replaced with the name of the channel (i.e the slack channel name)
+  room_alias_templates:
+    - "#enterprise_{name}:federation.org"
+  # The template to format a channel name before setting it as the room name on matrix.
+  room_name_template: "{name}"
   room_avatar_url: null # http or mxc url for the room avatar
   users_as_admin:
-      - "@nechayev:matrix.federation.org"
-      - "@riker:matrix.federation.org"
+    - "@nechayev:matrix.federation.org"
+    - "@riker:matrix.federation.org"
   users_to_invite:
-      - "@_neb_github:matrix.org"
+    - "@_neb_github:matrix.org"
   allow_at_room: false # Enable everyone to send @room notifications in matrix. (This enables @channel to work in both slack and matrix)
   make_public: True  # Make the rooms and the community publically joinable and set history to viewable by Anyone
   community_id: # The full ID of the communtiy you want rooms added to

@@ -1,17 +1,14 @@
 import logging
 
-from opsdroid.matchers import match_regex
-from opsdroid.events import UserInvite, Message
-from opsdroid.skill import Skill
-
 from opsdroid.connector.matrix import ConnectorMatrix
 from opsdroid.connector.slack import ConnectorSlack
-
+from opsdroid.events import Message, NewRoom, UserInvite
+from opsdroid.matchers import match_event, match_regex
+from opsdroid.skill import Skill
 
 from .matrix import MatrixMixin
 from .slack import SlackMixin
 from .slackbridge import SlackBridgeMixin
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -95,26 +92,29 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
         """
         React to a new slack channel event.
         """
+        _LOGGER.info(f"Got new room event {channel}")
         # This should be an opsdroid constraint one day
-        if NewRoom.connector is not self.slack_connector:
+        if channel.connector is not self.slack_connector:
             return
 
         is_public = self.config.get("make_public", False)
-        matrix_room_id = await self.create_new_matrix_room()
+        matrix_room_id = await self.join_or_create_matrix_room(channel.name)
 
         await self.configure_new_matrix_room_pre_bridge(matrix_room_id,
                                                         is_public)
 
         # Link the two rooms
-        await self.link_room(matrix_room_id, slack_channel_id)
+        await self.link_room(matrix_room_id, channel.target)
+
+        # Retrieve topic from slack
+        topic = await self.get_slack_channel_topic(channel.target)
 
         # Setup the matrix room
         await self.configure_new_matrix_room_post_bridge(matrix_room_id,
                                                          channel.name,
-                                    # TODO read channel from event
-                                                         "topic")
+                                                         topic)
 
-        await self.accounce_new_room(matrix_room_id, slack_channel_id)
+        await self.announce_new_room(matrix_room_id, channel.target)
 
     async def announce_new_room(self, matrix_room_id, slack_channel_id):
         """

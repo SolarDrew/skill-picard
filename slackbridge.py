@@ -15,6 +15,9 @@ class SlackBridgeMixin:
         """
         Link a Matrix room to a slack room.
         """
+        # Invite the slack event bot to the slack channel
+        await self.invite_slack_event_bot(slack_channel_id)
+
         return await self._link_room_admin_message(matrix_room_id, slack_channel_id)
 
     async def _link_room_admin_message(self, matrix_room_id, slack_channel_id):
@@ -23,9 +26,6 @@ class SlackBridgeMixin:
         """
         # Invite the appservice bot to the matrix room
         await self.invite_appservice_bot(matrix_room_id)
-
-        # Invite the slack event bot to the slack channel
-        await self.invite_slack_event_bot(slack_channel_id)
 
         # Send the link command
         token = self.slack_bot_token
@@ -65,7 +65,7 @@ class SlackBridgeMixin:
         """
         Return the first template alias for the given channel name.
         """
-        room_alias_template = self.config.get('room_alias_template')[0]
+        room_alias_template = self.config.get('room_alias_templates')[0]
         room_alias = room_alias_template.format(name=slack_channel_name)
 
         return await self.room_id_if_exists(room_alias)
