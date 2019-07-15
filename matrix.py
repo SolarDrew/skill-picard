@@ -42,7 +42,7 @@ class MatrixMixin:
         matrix_room_id = await self.room_id_if_exists(matrix_room_alias)
 
         if matrix_room_id is None:
-            matrix_room_id = await self.create_new_matrix_channel()
+            matrix_room_id = await self.create_new_matrix_room()
 
         is_in_room = await self.is_in_matrix_room(matrix_room_id)
 
@@ -52,7 +52,7 @@ class MatrixMixin:
 
         return matrix_room_id
 
-    async def create_new_matrix_channel(self):
+    async def create_new_matrix_room(self):
         """
         Create a new matrix channel with defaults from config.
         """

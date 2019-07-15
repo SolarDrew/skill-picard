@@ -1,7 +1,7 @@
 import logging
 
 from opsdroid.matchers import match_regex
-from opsdroid.events import UserInvite
+from opsdroid.events import UserInvite, Message
 from opsdroid.skill import Skill
 
 from opsdroid.connector.matrix import ConnectorMatrix
@@ -33,7 +33,7 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
                        message.regex['topic'])
 
         is_public = self.config.get("make_public", False)
-        matrix_room_id = await self.create_new_matrix_channel()
+        matrix_room_id = await self.create_new_matrix_room()
 
         await self.configure_new_matrix_room_pre_bridge(matrix_room_id, is_public)
 
@@ -53,6 +53,17 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
         await self.opsdroid.send(UserInvite(target=matrix_room_id,
                                             user=message.raw_event['sender']))
 
+        # Inform users about the new room/channel
+        await message.respond(f"Created a new room: #{matrix_room_alias}")
+        await self.opsdroid.send(Message(
+            text="A new room was created! Head to #{matrix_room_alias} to follow the conversation",
+            target=matrix_room_id,
+            connector=self.matrix_connector))
+        await self.opsdroid.send(Message(
+            text="A new room was created! Head to #{slack_channel_name} to follow the conversation",
+            target=slack_channel_id,
+            connector=self.slack_connector))
+
         return matrix_room_id
 
     @match_regex('!bridgeall')
@@ -69,11 +80,11 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
             matrix_room_id = await self.matrix_room_id_from_slack_channel_name(slack_channel_name)
 
             if channel['is_archived'] and matrix_room_id:
-                # await self.archive_matrix_channel(matrix_room_id)
+                # await self.archive_matrix_room(matrix_room_id)
                 continue
 
             if not matrix_room_id:
-                matrix_room_id = await self.create_new_matrix_channel()
+                matrix_room_id = await self.create_new_matrix_room()
 
             await self.configure_new_matrix_room_pre_bridge(matrix_room_id,
                                                             self.config.get("make_public", False))
@@ -91,11 +102,20 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
         React to a new slack channel event.
         """
         is_public = self.config.get("make_public", False)
-        matrix_room_id = await self.create_new_matrix_channel(name, topic,
-                                                              is_public)
+        matrix_room_id = await self.create_new_matrix_room(name, topic,
+                                                           is_public)
 
         # Link the rooms
         await self.link_room(matrix_room_id, slack_channel_id)
 
         # Setup the rest of the matrix room
         await self.configure_new_matrix_room(matrix_room_id)
+
+        await self.opsdroid.send(Message(
+            text="A new room was created! Head to #{matrix_room_alias} to follow the conversation",
+            target=matrix_room_id,
+            connector=self.matrix_connector))
+        await self.opsdroid.send(Message(
+            text="A new room was created! Head to #{slack_channel_name} to follow the conversation",
+            target=slack_channel_id,
+            connector=self.slack_connector))
