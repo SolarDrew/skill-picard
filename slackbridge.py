@@ -81,7 +81,6 @@ class SlackBridgeMixin:
         if not room_state:
             return
         canonical_alias = room_state[0]['content']['alias']
-        print(canonical_alias)
 
         room_alias_templates = self.config.get('room_alias_templates', [])
         if not room_alias_templates:
