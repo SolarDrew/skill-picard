@@ -129,6 +129,8 @@ class MatrixMixin:
         if self.config.get("allow_at_room", False):
             await self.matrix_atroom_pl_0(matrix_room_id)
 
+        return canonical_alias
+
     async def invite_to_matrix_room(self, matrix_room_id, users):
         """
         Invite the listed users to the room.
