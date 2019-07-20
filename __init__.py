@@ -31,6 +31,7 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
         return self.opsdroid._connector_names['slack']
 
     @match_regex('!createroom (?P<name>.+?) "(?P<topic>.+?)"')
+    @match_regex('!createchannel (?P<name>.+?) "(?P<topic>.+?)"')
     async def on_create_room_command(self, message):
         # TODO: Ignore duplicates here, if a slack user sends this message in a
         # bridged room, we react to both the original slack message and the
@@ -62,6 +63,7 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
             if message.connector is self.matrix_connector:
                 user = message.raw_event['sender']
                 target = matrix_room_id
+                command_room = message.target
 
                 await self.opsdroid.send(UserInvite(target=target,
                                                     user=user,
@@ -70,6 +72,7 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
             if message.connector is self.slack_connector:
                 user = message.raw_event['user']
                 target = slack_channel_id
+                command_room = await self.matrix_room_id_from_slack_channel_name(message.target)
 
                 await self.invite_user_to_slack_channel(slack_channel_id, user)
 
@@ -77,9 +80,10 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
             await self.add_room_to_community(matrix_room_id)
 
             # Inform users about the new room/channel
-            # TODO: Always send this message matrix side, and the appservice
-            # will convert the alias to a slack channel.
-            await message.respond(f"Created a new room: {matrix_room_alias}")
+            pill = f'<a href="https://matrix.to/#/{matrix_room_alias}">{matrix_room_alias}</a>'
+            await self.opsdroid.send(Message(f"Created a new room: {pill}",
+                                             target=command_room,
+                                             connector=self.matrix_connector))
 
             await self.announce_new_room(matrix_room_id, slack_channel_id)
 

@@ -90,6 +90,7 @@ class MatrixCommunityMixin:
         """
         Add the room to the configured community.
         """
+        print("Adding room to communtiy")
         return await self._add_room_to_community(matrix_room_id,
                                                  self.config['community_id'])
 
