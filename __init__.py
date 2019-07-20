@@ -1,4 +1,5 @@
 import logging
+import asyncio
 
 from opsdroid.connector.matrix import ConnectorMatrix
 from opsdroid.connector.slack import ConnectorSlack
@@ -7,13 +8,19 @@ from opsdroid.matchers import match_event, match_regex
 from opsdroid.skill import Skill
 
 from .matrix import MatrixMixin
+from .matrix_groups import MatrixCommunityMixin
 from .slack import SlackMixin
 from .slackbridge import SlackBridgeMixin
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
+class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMixin):
+
+    def __init__(self, opsdroid, config, *args, **kwargs):
+        super().__init__(opsdroid, config, *args, **kwargs)
+
+        self._slack_channel_lock = asyncio.Lock()
 
     @property
     def matrix_connector(self):
@@ -118,6 +125,11 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
         if channel.connector is not self.slack_connector:
             return
 
+        # If we have created a slack channel we want to not react to it.
+        if self._slack_channel_lock.locked():
+            _LOGGER.info("Ignoring channel create event from slack, creation locked.")
+            return
+
         is_public = self.config.get("make_public", False)
         matrix_room_id = await self.join_or_create_matrix_room(channel.name)
 
@@ -147,7 +159,6 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
 
         elif topic.connector is self.slack_connector:
             user_id = await self._id_for_slack_user_token()
-            print(user_id, topic.raw_event['user'])
             if topic.raw_event['user'] == user_id:
                 return
 
