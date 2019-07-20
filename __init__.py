@@ -24,37 +24,59 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin):
         return self.opsdroid._connector_names['slack']
 
     @match_regex('!createroom (?P<name>.+?) "(?P<topic>.+?)"')
-    async def on_matrix_create_room_command(self, message):
-        await message.respond('Riker to the Bridge')
-        name, topic = (message.regex['name'],
-                       message.regex['topic'])
+    async def on_create_room_command(self, message):
+        # TODO: Ignore duplicates here, if a slack user sends this message in a
+        # bridged room, we react to both the original slack message and the
+        # matrix message.
+        async with self._slack_channel_lock:
+            await message.respond('Riker to the Bridge')
+            name, topic = (message.regex['name'],
+                           message.regex['topic'])
 
-        is_public = self.config.get("make_public", False)
-        matrix_room_id = await self.create_new_matrix_room()
+            is_public = self.config.get("make_public", False)
+            matrix_room_id = await self.create_new_matrix_room()
 
-        await self.configure_new_matrix_room_pre_bridge(matrix_room_id, is_public)
+            await self.configure_new_matrix_room_pre_bridge(matrix_room_id, is_public)
 
-        # Create the corresponding slack channel
-        slack_channel_id = await self.create_slack_channel(name)
+            # Create the corresponding slack channel
+            slack_channel_id = await self.create_slack_channel(name)
 
-        # Link the two rooms
-        await self.link_room(matrix_room_id, slack_channel_id)
+            # Link the two rooms
+            await self.link_room(matrix_room_id, slack_channel_id)
 
-        # Setup the matrix room
-        await self.configure_new_matrix_room_post_bridge(matrix_room_id, name, topic)
+            # Setup the matrix room
+            matrix_room_alias = await self.configure_new_matrix_room_post_bridge(
+                matrix_room_id, name, topic)
 
-        # Set the description of the slack channel
-        await self.set_slack_channel_description(slack_channel_id, topic)
+            # Set the description of the slack channel
+            await self.set_slack_channel_description(slack_channel_id, topic)
 
-        # Invite Command User
-        await self.opsdroid.send(UserInvite(target=matrix_room_id,
-                                            user=message.raw_event['sender']))
+            # Invite Command User
+            if message.connector is self.matrix_connector:
+                user = message.raw_event['sender']
+                target = matrix_room_id
 
-        # Inform users about the new room/channel
-        await message.respond(f"Created a new room: #{matrix_room_alias}")
-        await self.announce_new_room(matrix_room_id, slack_channel_id)
+                await self.opsdroid.send(UserInvite(target=target,
+                                                    user=user,
+                                                    connector=message.connector))
 
-        return matrix_room_id
+            if message.connector is self.slack_connector:
+                user = message.raw_event['user']
+                target = slack_channel_id
+
+                await self.invite_user_to_slack_channel(slack_channel_id, user)
+
+            # Add the room to the community
+            await self.add_room_to_community(matrix_room_id)
+
+            # Inform users about the new room/channel
+            # TODO: Always send this message matrix side, and the appservice
+            # will convert the alias to a slack channel.
+            await message.respond(f"Created a new room: {matrix_room_alias}")
+
+            await self.announce_new_room(matrix_room_id, slack_channel_id)
+
+            return matrix_room_id
 
     @match_regex('!bridgeall')
     async def bridge_all_slack_channels(self, message):
