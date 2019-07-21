@@ -100,7 +100,8 @@ class MatrixMixin:
 
         # Set Room Name
         room_name_template = self.config.get('room_name_template')
-        if room_name_template:
+        # TODO: Undo this, and use a state event in the room to skip name setting.
+        if room_name_template and name != "general":
             await self.opsdroid.send(RoomName(target=matrix_room_id,
                                               name=room_name_template.format(name=name),
                                               connector=self.matrix_connector))
