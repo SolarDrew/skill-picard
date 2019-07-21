@@ -117,7 +117,10 @@ class MatrixMixin:
                                                  connector=self.matrix_connector))
 
         # Add to community
+        await self.add_room_to_community(matrix_room_id)
+
         # Enable flairs
+        await self.set_related_groups(matrix_room_id)
 
         invite_users = (self.config.get("users_to_invite", []) +
                         self.config.get('users_as_admin', []))

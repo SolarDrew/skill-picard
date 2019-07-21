@@ -31,13 +31,13 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
         return self.opsdroid._connector_names['slack']
 
     @match_regex('!createroom (?P<name>.+?) "(?P<topic>.+?)"')
-    @match_regex('!createchannel (?P<name>.+?) "(?P<topic>.+?)"')
     async def on_create_room_command(self, message):
         # TODO: Ignore duplicates here, if a slack user sends this message in a
         # bridged room, we react to both the original slack message and the
         # matrix message.
         async with self._slack_channel_lock:
-            await message.respond('Riker to the Bridge')
+            await message.respond('Creating room please wait...')
+
             name, topic = (message.regex['name'],
                            message.regex['topic'])
 
@@ -76,9 +76,6 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
 
                 await self.invite_user_to_slack_channel(slack_channel_id, user)
 
-            # Add the room to the community
-            await self.add_room_to_community(matrix_room_id)
-
             # Inform users about the new room/channel
             pill = f'<a href="https://matrix.to/#/{matrix_room_alias}">{matrix_room_alias}</a>'
             await self.opsdroid.send(Message(f"Created a new room: {pill}",
@@ -94,6 +91,7 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
         """
         Iterate over all slack channels and bridge them one by one.
         """
+        # TODO: only allow this in the main room in the opsdroid configuration
 
         channels = await self.get_slack_channel_mapping()
         for slack_channel_id, channel in channels.items():
