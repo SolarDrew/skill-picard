@@ -3,7 +3,7 @@ import asyncio
 
 from opsdroid.connector.matrix import ConnectorMatrix
 from opsdroid.connector.slack import ConnectorSlack
-from opsdroid.events import Message, NewRoom, RoomDescription, UserInvite
+from opsdroid.events import Message, NewRoom, RoomDescription, UserInvite, OpsdroidStarted
 from opsdroid.matchers import match_event, match_regex
 from opsdroid.skill import Skill
 
@@ -86,12 +86,15 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
 
             return matrix_room_id
 
+    @match_event(OpsdroidStarted)
     @match_regex('!bridgeall')
     async def bridge_all_slack_channels(self, message):
         """
         Iterate over all slack channels and bridge them one by one.
         """
-        # TODO: only allow this in the main room in the opsdroid configuration
+        if isinstance(message, Message) and message.target != self.matrix_connector.room_ids['main']:
+            _LOGGER.debug("Ignoring !bridgeall command not in main room.")
+            return
 
         channels = await self.get_slack_channel_mapping()
         for slack_channel_id, channel in channels.items():

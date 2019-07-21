@@ -53,9 +53,13 @@ class MatrixCommunityMixin:
         """
         Add a room to a community.
         """
-        return await self.matrix_api._send(
-            "PUT",
-            f"/groups/{quote(community_id)}/admin/rooms/{quote(matrix_room_id)}")
+        try:
+            return await self.matrix_api._send(
+                "PUT",
+                f"/groups/{quote(community_id)}/admin/rooms/{quote(matrix_room_id)}")
+        except MatrixRequestError:
+            # it seems that Synapse 500's if the room is already in the community.
+            _LOGGER.exception("Failed to add room to community.")
 
     async def _invite_user_to_community(self, matrix_user_id, community_id):
         """
@@ -106,6 +110,7 @@ class MatrixCommunityMixin:
         """
         Add the room to the configured community.
         """
+        # TODO: Check if room is already in communtiy before calling this.
         return await self._add_room_to_community(matrix_room_id,
                                                  self.config['community_id'])
 
