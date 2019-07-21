@@ -150,6 +150,7 @@ class MatrixMixin:
         """
         # Make config people admin
         for user in self.config.get("users_as_admin", []):
+            # TODO: Do this manually so we only inject one state event to make all the admins admin.
             await self.opsdroid.send(UserRole(target=matrix_room_id,
                                               user=user, role='admin',
                                               connector=self.matrix_connector))

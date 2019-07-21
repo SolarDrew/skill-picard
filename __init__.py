@@ -69,7 +69,7 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
                                                     user=user,
                                                     connector=message.connector))
 
-            if message.connector is self.slack_connector:
+            elif message.connector is self.slack_connector:
                 user = message.raw_event['user']
                 target = slack_channel_id
                 command_room = await self.matrix_room_id_from_slack_channel_name(message.target)
@@ -99,10 +99,11 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
         channels = await self.get_slack_channel_mapping()
         for slack_channel_id, channel in channels.items():
             slack_channel_name = channel['name']
-            _LOGGER.debug(f"Processing... {slack_channel_name}")
+            _LOGGER.info(f"[bridge_all_slack_channels] Processing channel: {slack_channel_name}")
 
-            matrix_room_id = await self.matrix_room_id_from_slack_channel_name(slack_channel_name)
+            matrix_room_id = await self.join_or_create_matrix_room(slack_channel_name)
 
+            # TODO: This iteration doesn't include archived channels.
             if channel['is_archived'] and matrix_room_id:
                 # await self.archive_matrix_room(matrix_room_id)
                 continue
@@ -120,6 +121,10 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
             await self.configure_new_matrix_room_post_bridge(matrix_room_id,
                                                              slack_channel_name,
                                                              channel['topic']['value'])
+
+        await self.opsdroid.send(Message("Finished adding all channels.",
+                                         target="main",
+                                         connector=self.matrix_connector))
 
     @match_event(NewRoom)
     async def on_new_slack_channel(self, channel):
