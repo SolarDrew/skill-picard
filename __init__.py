@@ -191,7 +191,8 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
             # Setup the matrix room
             await self.configure_new_matrix_room_post_bridge(matrix_room_id,
                                                              slack_channel_name,
-                                                             channel['topic']['value'])
+                                                             channel['topic']['value'],
+                                                             _bridgeall=False)
 
         await self.opsdroid.send(Message("Finished adding all channels.",
                                          target="main",

@@ -80,7 +80,8 @@ class MatrixMixin:
                                                              target=matrix_room_id,
                                                              connector=self.matrix_connector))
 
-    async def configure_new_matrix_room_post_bridge(self, matrix_room_id, name, topic):
+    async def configure_new_matrix_room_post_bridge(self, matrix_room_id, name, topic,
+                                                    _bridgeall=False):
         """
         Given Picard's config, setup the matrix side as appropriate.
         """
@@ -123,7 +124,11 @@ class MatrixMixin:
         # Enable flairs
         await self.set_related_groups(matrix_room_id)
 
-        memory_users = await self.opsdroid.memory.get("autoinvite_users") or []
+        if not _bridgeall:
+            memory_users = await self.opsdroid.memory.get("autoinvite_users") or []
+        else:
+            memory_users = []
+
         invite_users = (self.config.get("users_to_invite", []) +
                         self.config.get('users_as_admin', []) +
                         memory_users)
