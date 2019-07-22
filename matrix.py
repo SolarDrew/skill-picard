@@ -123,8 +123,10 @@ class MatrixMixin:
         # Enable flairs
         await self.set_related_groups(matrix_room_id)
 
+        memory_users = await self.opsdroid.memory.get("autoinvite_users") or []
         invite_users = (self.config.get("users_to_invite", []) +
-                        self.config.get('users_as_admin', []))
+                        self.config.get('users_as_admin', []) +
+                        memory_users)
 
         await self.invite_to_matrix_room(matrix_room_id, invite_users)
 

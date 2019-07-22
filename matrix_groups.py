@@ -72,9 +72,16 @@ class MatrixCommunityMixin:
     async def _get_community_members(self, community_id):
         response = await self.matrix_api._send(
             "GET",
-            "/groups/{quote(community_id}/users")
+            f"/groups/{quote(community_id)}/users")
         print(response)
         return response
+
+    async def _get_community_rooms(self, community_id):
+        response = await self.matrix_api._send(
+            "GET",
+            f"/groups/{quote(community_id)}/rooms")
+        rooms = [r['room_id'] for r in response['chunk']]
+        return rooms
 
     async def _get_community_profile(self, community_id):
         return await self.matrix_api._send("GET", f"/groups/{quote(community_id)}/profile")
@@ -104,6 +111,10 @@ class MatrixCommunityMixin:
 
         self._community_cache.append(community_id)
         return True
+
+    @if_community_configured
+    async def get_all_community_rooms(self):
+        return await self._get_community_rooms(self.config['community_id'])
 
     @if_community_configured
     async def add_room_to_community(self, matrix_room_id):

@@ -1,16 +1,23 @@
-import logging
 import asyncio
+import logging
+from textwrap import dedent
+
+from markdown import markdown
 
 from opsdroid.connector.matrix import ConnectorMatrix
 from opsdroid.connector.slack import ConnectorSlack
-from opsdroid.events import Message, NewRoom, RoomDescription, UserInvite, OpsdroidStarted
+from opsdroid.constraints import constrain_connectors
+from opsdroid.events import (JoinRoom, Message, NewRoom, OpsdroidStarted,
+                             RoomDescription, UserInvite)
 from opsdroid.matchers import match_event, match_regex
 from opsdroid.skill import Skill
 
+from .constraints import ignore_appservice_users, admin_command
 from .matrix import MatrixMixin
 from .matrix_groups import MatrixCommunityMixin
 from .slack import SlackMixin
 from .slackbridge import SlackBridgeMixin
+from .util import RoomMemory
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,6 +28,7 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
         super().__init__(opsdroid, config, *args, **kwargs)
 
         self._slack_channel_lock = asyncio.Lock()
+        self.memory = RoomMemory(self.opsdroid)
 
     @property
     def matrix_connector(self):
@@ -30,7 +38,73 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
     def slack_connector(self):
         return self.opsdroid._connector_names['slack']
 
+    @match_regex("!help")
+    @ignore_appservice_users
+    async def on_help(self, message):
+        help_text = dedent("""\
+        Valid Commands are:
+
+
+        * !createroom (name) "(topic)"
+
+        Create a new room.
+
+        Matrix user commands:
+
+        * !inviteall
+
+        Get invites to all matrix rooms.
+
+        * !autoinvite [disable]
+
+        Enable or disable invites to all new matrix rooms.
+
+        """)
+
+        if message.connector is self.matrix_connector:
+            help_text = markdown(help_text)
+
+        return await message.respond(help_text)
+
+    @match_regex("!inviteall")
+    @constrain_connectors("matrix")
+    @ignore_appservice_users
+    async def on_invite_all(self, message):
+        rooms = await self.get_all_community_rooms()
+        for r in rooms:
+            await message.respond(UserInvite(user=message.raw_event['sender'],
+                                             target=r,
+                                             connector=self.matrix_connector))
+
+    @match_regex("!autoinvite")
+    @constrain_connectors("matrix")
+    @ignore_appservice_users
+    async def on_auto_invite(self, message):
+        sender = message.raw_event['sender']
+        users = await self.opsdroid.memory.get("autoinvite_users") or []
+        if sender in users:
+            return await message.respond("You already have autoinvite enabled.")
+        users.append(sender)
+        await self.opsdroid.memory.put("autoinvite_users", users)
+
+        return await message.respond(
+            "You will be invited to all future rooms. Use !inviteall to get invites to existing rooms.")
+
+    @match_regex("!autoinvite disable")
+    @constrain_connectors("matrix")
+    @ignore_appservice_users
+    async def on_disable_auto_invite(self, message):
+        sender = message.raw_event['sender']
+        users = await self.opsdroid.memory.get("autoinvite_users") or []
+        if sender not in users:
+            return await message.respond("You do not have autoinvite enabled.")
+        users.remove(sender)
+        await self.opsdroid.memory.put("autoinvite_users", users)
+
+        return await message.respond("Autoinvite disabled.")
+
     @match_regex('!createroom (?P<name>.+?) "(?P<topic>.+?)"')
+    @ignore_appservice_users
     async def on_create_room_command(self, message):
         # TODO: Ignore duplicates here, if a slack user sends this message in a
         # bridged room, we react to both the original slack message and the
@@ -88,18 +162,15 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
 
     @match_event(OpsdroidStarted)
     @match_regex('!bridgeall')
+    @admin_command
     async def bridge_all_slack_channels(self, message):
         """
         Iterate over all slack channels and bridge them one by one.
         """
-        if isinstance(message, Message) and message.target != self.matrix_connector.room_ids['main']:
-            _LOGGER.debug("Ignoring !bridgeall command not in main room.")
-            return
-
         channels = await self.get_slack_channel_mapping()
         for slack_channel_id, channel in channels.items():
             slack_channel_name = channel['name']
-            _LOGGER.info(f"[bridge_all_slack_channels] Processing channel: {slack_channel_name}")
+            _LOGGER.info(f"Processing... {slack_channel_name}")
 
             matrix_room_id = await self.join_or_create_matrix_room(slack_channel_name)
 
@@ -179,6 +250,14 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
             topic.connector = self.matrix_connector
 
             await self.opsdroid.send(topic)
+
+    @match_event(UserInvite)
+    @constrain_connectors("matrix")
+    async def on_invite_to_room(self, invite):
+        """
+        Join all rooms on invite.
+        """
+        return await invite.respond(JoinRoom())
 
     async def announce_new_room(self, matrix_room_id, slack_channel_id):
         """
