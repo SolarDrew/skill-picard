@@ -16,23 +16,16 @@ class PicardCommands:
     @match_regex("!help")
     @ignore_appservice_users
     async def on_help(self, message):
-        help_text = dedent("""\
-        Valid Commands are:
+        help_text = dedent(f"""\
+        Hi {message.user}! Here are the commands you can use in the chat. Please use these commands in a private chat with the bot, to avoid spamming other users.
 
-        * !createroom (name) "(topic)"
+        * `!help`: show this help message
+        * `!createroom (name of new room) "(topic of new room)"`: make a new room (on both matrix and slack). This is the preferred way to make a matrix room, because it will be automatically added to the community
 
-            Create a new room.
+        These commands are useable only from the matrix side:
 
-        Matrix user commands:
-
-        * !inviteall
-
-            Get invites to all matrix rooms.
-
-        * !autoinvite [disable]
-
-            Enable or disable invites to all new matrix rooms.
-
+        * `!inviteall`: make the bot invite you to all rooms currently in the community
+        * `!autoinvite` / `!autoinvite [disable]`: Switch on/off automatic invitations to new rooms when they are created
         """)
 
         if message.connector is self.matrix_connector:
