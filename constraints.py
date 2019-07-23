@@ -5,7 +5,7 @@ from opsdroid.events import Message
 
 _LOGGER = logging.getLogger(__name__)
 
-__all__ = ['main_room_only', 'ignore_appservice_users']
+__all__ = ['admin_command', 'ignore_appservice_users']
 
 
 def _future_none():
