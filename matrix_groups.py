@@ -11,6 +11,8 @@ from urllib.parse import quote
 import parse
 from matrix_client.errors import MatrixRequestError
 
+from opsdroid.events import JoinGroup
+from opsdroid.matchers import match_crontab, match_regex
 from opsdroid.connector.matrix.events import MatrixStateEvent
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,12 +71,11 @@ class MatrixCommunityMixin:
             "PUT",
             f"/groups/{quote(community_id)}/admin/users/invite/{quote(matrix_user_id)}")
 
-    async def _get_community_members(self, community_id):
+    async def _get_community_users(self, community_id):
         response = await self.matrix_api._send(
             "GET",
             f"/groups/{quote(community_id)}/users")
-        print(response)
-        return response
+        return [r['user_id'] for r in response['chunk']]
 
     async def _get_community_rooms(self, community_id):
         response = await self.matrix_api._send(
@@ -117,6 +118,10 @@ class MatrixCommunityMixin:
         return await self._get_community_rooms(self.config['community_id'])
 
     @if_community_configured
+    async def get_all_community_users(self):
+        return await self._get_community_users(self.config['community_id'])
+
+    @if_community_configured
     async def add_room_to_community(self, matrix_room_id):
         """
         Add the room to the configured community.
@@ -157,3 +162,24 @@ class MatrixCommunityMixin:
                                                          content=content,
                                                          target=matrix_room_id,
                                                          connector=self.matrix_connector))
+
+    @match_crontab('* * * * *')
+    async def _watch_for_new_users(self, message):
+        if "community_id" not in self.config:
+            return
+
+        known_users = set(await self.opsdroid.memory.get("known_community_users") or [])
+        community_users = await self.get_all_community_users()
+        # Skip ourself.
+        community_users.remove(self.matrix_connector.mxid)
+        community_users = set(community_users)
+
+        new_users = community_users.difference(known_users)
+
+        for user in new_users:
+            _LOGGER.info(f"New user in Community {user}")
+            await self.opsdroid.parse(JoinGroup(user=user,
+                                                target=self.config['community_id'],
+                                                connector=self.matrix_connector))
+
+        await self.opsdroid.memory.put("known_community_users", list(community_users))

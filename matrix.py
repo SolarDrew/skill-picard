@@ -199,3 +199,27 @@ class MatrixMixin:
         # Send an event so Picard knows it's archived
         return await opsdroid.send(MatrixStateEvent(key='m.picard.info',
                                                     content={'is_archived': 'true'}))
+
+    async def _get_joined_members(self, matrix_room_id):
+        """
+        Get a list of all the joined members in a room.
+        """
+        members = []
+        response = await self.matrix_api.get_room_members(matrix_room_id)
+        for event in response["chunk"]:
+            if event["content"]["membership"] == "join":
+                members.append(event['state_key'])
+
+        return members
+
+    async def is_one_to_one_chat(self, matrix_room_id):
+        """
+        Returns true if this room only has picard and one other user in it.
+        """
+        members = await self._get_joined_members(matrix_room_id)
+        if self.matrix_connector.mxid not in members:
+            return False
+        members.remove(self.matrix_connector.mxid)
+
+        return len(members) == 1
+

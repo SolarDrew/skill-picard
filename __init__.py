@@ -1,20 +1,23 @@
 import asyncio
 import logging
+from textwrap import dedent
+
+from markdown import markdown
 
 from opsdroid.connector.matrix import ConnectorMatrix
 from opsdroid.connector.slack import ConnectorSlack
 from opsdroid.constraints import constrain_connectors
-from opsdroid.events import (JoinRoom, Message, NewRoom, OpsdroidStarted,
-                             RoomDescription, UserInvite)
+from opsdroid.events import (JoinGroup, JoinRoom, Message, NewRoom,
+                             OpsdroidStarted, RoomDescription, UserInvite)
 from opsdroid.matchers import match_event, match_regex
 from opsdroid.skill import Skill
 
-from .constraints import ignore_appservice_users, admin_command
+from .commands import PicardCommands
+from .constraints import admin_command, ignore_appservice_users
 from .matrix import MatrixMixin
 from .matrix_groups import MatrixCommunityMixin
 from .slackbridge import SlackBridgeMixin
 from .util import RoomMemory
-from .commands import PicardCommands
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -135,7 +138,35 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         """
         Join all rooms on invite.
         """
-        return await invite.respond(JoinRoom())
+        await invite.respond(JoinRoom())
+
+        if await self.is_one_to_one_chat(invite.target):
+            return await self.send_matrix_welcome_message(invite.target)
+
+    @match_event(JoinGroup)
+    @constrain_connectors("matrix")
+    async def on_new_community_user(self, join):
+        """
+        React to a new user joining the community on matrix.
+        """
+        matrix_room_id = await self.create_new_matrix_room()
+        await self.opsdroid.send(UserInvite(user=join.user,
+                                            target=matrix_room_id,
+                                            connector=self.matrix_connector))
+
+        await self.send_matrix_welcome_message(matrix_room_id)
+
+    async def send_matrix_welcome_message(self, matrix_room_id):
+        """
+        Send the welcome message to a matrix 1-1.
+        """
+        welcome_message = dedent("""\
+        Welcome to Python in Astronomy 2019! I am a helpful 🤖.
+        """)
+        welcome_message = markdown(welcome_message)
+        return await self.opsdroid.send(Message(welcome_message,
+                                                target=matrix_room_id,
+                                                connector=self.matrix_connector))
 
     async def announce_new_room(self, matrix_room_id, slack_channel_id):
         """
