@@ -46,6 +46,21 @@ class SlackBridgeMixin(SlackMixin):
         """
         raise NotImplementedError("Wont get around to this one for a while.")
 
+    async def unlink_room(self, matrix_room_id, slack_channel_id=None):
+        """
+        Unlink and leave the bridge.
+        """
+        await self._unlink_room_admin_message(matrix_room_id)
+
+    async def _unlink_room_admin_message(self, matrix_room_id):
+        await self.opsdroid.send(Message(f"leave {matrix_room_id}",
+                                         target='bridge',
+                                         connector=self.matrix_connector))
+
+        await self.opsdroid.send(Message(f"unlink --room {matrix_room_id}",
+                                         target='bridge',
+                                         connector=self.matrix_connector))
+
     async def invite_appservice_bot(self, matrix_room_id):
         """
         Invite the slack appservice bot to the matrix room.

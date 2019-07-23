@@ -176,9 +176,10 @@ class MatrixMixin:
 
     async def archive_matrix_room(self, matrix_room_id):
         # Make sure the room isn't already archived first
-        info = await self.matrix_api.get_state_event(matrix_room_id, 'm.picard.info')
-        is_archived = info.get('is_archived')
-        if is_archived == 'true':
+        with self.memory[matrix_room_id]:
+            is_archived = await self.opsdroid.memory.get("is_archived")
+
+        if is_archived:
             return
 
         # Change default speak power level so folks can't chat
@@ -191,14 +192,32 @@ class MatrixMixin:
 
         # Edit name of room so we know it's archived
         old_name = await self.matrix_api.get_room_name(matrix_room_id)
-        new_name = '[Archived] ' + old_name
+        new_name = '[Archived] ' + old_name['name']
         await self.opsdroid.send(RoomName(target=matrix_room_id,
                                           name=new_name,
                                           connector=self.matrix_connector))
 
-        # Send an event so Picard knows it's archived
-        return await opsdroid.send(MatrixStateEvent(key='m.picard.info',
-                                                    content={'is_archived': 'true'}))
+        with self.memory[matrix_room_id]:
+            is_archived = await self.opsdroid.memory.put("is_archived", True)
+
+    async def unarchive_matrix_room(self, matrix_room_id):
+        # Make sure the room is archived first
+        with self.memory[matrix_room_id]:
+            is_archived = await self.opsdroid.memory.get("is_archived")
+
+        if not is_archived:
+            return
+
+        # Change default speak power level so folks can chat
+        power_levels = await self.matrix_api.get_power_levels(matrix_room_id)
+        power_levels['events_default'] = 0
+
+        await self.opsdroid.send(MatrixPowerLevels(power_levels,
+                                                   target=matrix_room_id,
+                                                   connector=self.matrix_connector))
+
+        with self.memory[matrix_room_id]:
+            is_archived = await self.opsdroid.memory.put("is_archived", False)
 
     async def _get_joined_members(self, matrix_room_id):
         """

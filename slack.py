@@ -128,4 +128,3 @@ class SlackMixin:
         message = message.replace("&gt;", ">")
         message = message.replace("&amp;", "&")
         return message
-

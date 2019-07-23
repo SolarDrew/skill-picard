@@ -5,7 +5,7 @@ from textwrap import dedent
 from markdown import markdown
 
 from opsdroid.connector.matrix import ConnectorMatrix
-from opsdroid.connector.slack import ConnectorSlack
+from opsdroid.connector.slack import ConnectorSlack, events as slack_events
 from opsdroid.constraints import constrain_connectors
 from opsdroid.events import (JoinGroup, JoinRoom, Message, NewRoom,
                              OpsdroidStarted, RoomDescription, UserInvite)
@@ -80,6 +80,29 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         await self.opsdroid.send(Message("Finished adding all channels.",
                                          target="main",
                                          connector=self.matrix_connector))
+
+    @match_event(slack_events.ChannelArchived)
+    async def on_archive_slack_channel(self, archive):
+        matrix_room_id = await self.matrix_room_id_from_slack_channel_id(archive.target)
+        if not matrix_room_id:
+            return
+
+        await self.archive_matrix_room(matrix_room_id)
+
+        await self.unlink_room(matrix_room_id, archive.target)
+
+    @match_event(slack_events.ChannelUnarchived)
+    async def on_unarchive_slack_channel(self, unarchive):
+        matrix_room_id = await self.matrix_room_id_from_slack_channel_id(unarchive.target)
+        if matrix_room_id:
+            await self.unarchive_matrix_room(matrix_room_id)
+
+        name = await self.get_slack_channel_name(unarchive.target)
+        new_room = NewRoom(name=name,
+                           target=unarchive.target,
+                           connector=unarchive.connector)
+
+        return await self.on_new_slack_channel(new_room)
 
     @match_event(NewRoom)
     @constrain_connectors("slack")
