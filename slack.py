@@ -111,10 +111,17 @@ class SlackMixin:
 
     async def get_slack_channel_name(self, slack_channel_id):
         """
-        Get the topic for a channel.
+        Get the name for a channel.
         """
         response = await self.slacker_bot_client.channels.info(slack_channel_id)
         return response.body['channel']['name']
+
+    async def set_slack_channel_name(self, slack_channel_id, name):
+        """
+        Get the name for a channel.
+        """
+        with self.slacker_user_client as client:
+            await client.channels.rename(slack_channel_id, name)
 
     async def get_slack_channel_id_from_name(self, slack_channel_name):
         channel_map = await self.get_slack_channel_mapping()

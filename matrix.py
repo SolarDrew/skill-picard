@@ -80,11 +80,7 @@ class MatrixMixin:
                                                              target=matrix_room_id,
                                                              connector=self.matrix_connector))
 
-    async def configure_new_matrix_room_post_bridge(self, matrix_room_id, name, topic,
-                                                    _bridgeall=False):
-        """
-        Given Picard's config, setup the matrix side as appropriate.
-        """
+    async def configure_room_aliases(self, matrix_room_id, name):
         # Set Aliases
         room_alias_templates = self.config.get('room_alias_templates', [])
         for alias_template in room_alias_templates:
@@ -98,6 +94,20 @@ class MatrixMixin:
                                                       content={'alias': canonical_alias},
                                                       target=matrix_room_id,
                                                       connector=self.matrix_connector))
+
+        return canonical_alias
+
+    async def remove_room_aliases(self, name):
+        room_alias_templates = self.config.get('room_alias_templates', [])
+        for alias_template in room_alias_templates:
+            await self.matrix_api.remove_room_alias(alias_template.format(name=name))
+
+    async def configure_new_matrix_room_post_bridge(self, matrix_room_id, name, topic,
+                                                    _bridgeall=False):
+        """
+        Given Picard's config, setup the matrix side as appropriate.
+        """
+        canonical_alias = await self.configure_room_aliases(matrix_room_id, name)
 
         # Set Room Name
         room_name_template = self.config.get('room_name_template')

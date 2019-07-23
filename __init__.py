@@ -3,17 +3,20 @@ import logging
 from textwrap import dedent
 
 from markdown import markdown
+from parse import parse
 
 from opsdroid.connector.matrix import ConnectorMatrix
-from opsdroid.connector.slack import ConnectorSlack, events as slack_events
-from opsdroid.constraints import constrain_connectors
+from opsdroid.connector.slack import ConnectorSlack
+from opsdroid.connector.slack import events as slack_events
 from opsdroid.events import (JoinGroup, JoinRoom, Message, NewRoom,
-                             OpsdroidStarted, RoomDescription, UserInvite)
+                             OpsdroidStarted, RoomDescription, RoomName,
+                             UserInvite)
 from opsdroid.matchers import match_event, match_regex
 from opsdroid.skill import Skill
 
 from .commands import PicardCommands
-from .constraints import admin_command, ignore_appservice_users
+from .constraints import (admin_command, constrain_matrix_connector,
+                          constrain_slack_connector, ignore_appservice_users)
 from .matrix import MatrixMixin
 from .matrix_groups import MatrixCommunityMixin
 from .slackbridge import SlackBridgeMixin
@@ -28,6 +31,7 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         super().__init__(opsdroid, config, *args, **kwargs)
 
         self._slack_channel_lock = asyncio.Lock()
+        self._slack_rename_lock = asyncio.Lock()
         self.memory = RoomMemory(self.opsdroid)
 
     @property
@@ -105,7 +109,7 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         return await self.on_new_slack_channel(new_room)
 
     @match_event(NewRoom)
-    @constrain_connectors("slack")
+    @constrain_slack_connector
     async def on_new_slack_channel(self, channel):
         """
         React to a new slack channel event.
@@ -137,7 +141,6 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
     @match_event(RoomDescription)
     async def on_topic_change(self, topic):
         """Handle a topic change."""
-
         if topic.connector is self.matrix_connector:
             slack_channel_id = await self.slack_channel_id_from_matrix_room_id(topic.target)
             await self.set_slack_channel_description(slack_channel_id, topic.description)
@@ -156,8 +159,48 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
 
             await self.opsdroid.send(topic)
 
+    @match_event(RoomName)
+    async def on_name_change(self, room_name):
+        """Handle a room name change."""
+        name_template = self.config.get("room_name_template")
+        if not name_template:
+            return
+        if room_name.connector is self.matrix_connector:
+            name = parse(name_template, room_name.name)['name']
+            matrix_room_id = room_name.target
+            slack_channel_id = await self.slack_channel_id_from_matrix_room_id(room_name.target)
+            old_name = await self.get_slack_channel_name(slack_channel_id)
+
+        if room_name.connector is self.slack_connector:
+            print("from slack")
+            if self._slack_rename_lock.locked():
+                return
+            slack_channel_id = room_name.target
+            old_name = room_name.raw_event['old_name']
+            matrix_room_id = await self.matrix_room_id_from_slack_channel_name(old_name)
+            name = room_name.name
+
+            if old_name == name:
+                return
+
+        # Remove the aliases for the old name
+        await self.remove_room_aliases(old_name)
+
+        # Add new aliases
+        await self.configure_room_aliases(matrix_room_id, name)
+
+        if room_name.connector is self.matrix_connector:
+            async with self._slack_rename_lock:
+                await self.set_slack_channel_name(slack_channel_id, name)
+
+        if room_name.connector is self.slack_connector:
+            new_name = RoomName(name=name_template.format(name=name),
+                                target=matrix_room_id,
+                                connector=self.matrix_connector)
+            return await self.opsdroid.send(new_name)
+
     @match_event(UserInvite)
-    @constrain_connectors("matrix")
+    @constrain_matrix_connector
     async def on_invite_to_room(self, invite):
         """
         Join all rooms on invite.
@@ -168,7 +211,7 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
             return await self.send_matrix_welcome_message(invite.target)
 
     @match_event(JoinGroup)
-    @constrain_connectors("matrix")
+    @constrain_matrix_connector
     async def on_new_community_user(self, join):
         """
         React to a new user joining the community on matrix.
