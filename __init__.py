@@ -162,11 +162,17 @@ class Picard(Skill, MatrixMixin, SlackMixin, SlackBridgeMixin, MatrixCommunityMi
 
     @match_event(OpsdroidStarted)
     @match_regex('!bridgeall')
+    @match_event(OpsdroidStarted)
     @admin_command
     async def bridge_all_slack_channels(self, message):
         """
         Iterate over all slack channels and bridge them one by one.
         """
+        if (isinstance(message, OpsdroidStarted) and
+            not self.config.get("copy_from_slack_startup", True)):
+
+            return
+
         channels = await self.get_slack_channel_mapping()
         for slack_channel_id, channel in channels.items():
             slack_channel_name = channel['name']
