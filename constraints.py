@@ -35,3 +35,23 @@ def admin_command(f):
         return f(self, message)
 
     return wrapper
+
+
+def constrain_matrix_connector(f):
+    def wrapper(self, message):
+        if message.connector is not self.matrix_connector:
+            return _future_none()
+
+        return f(self, message)
+
+    return wrapper
+
+
+def constrain_slack_connector(f):
+    def wrapper(self, message):
+        if message.connector is not self.slack_connector:
+            return _future_none()
+
+        return f(self, message)
+
+    return wrapper
