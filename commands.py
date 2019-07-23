@@ -21,14 +21,17 @@ class PicardCommands:
 
         * `!help`: show this help message
         * `!createroom (name of new room) "(topic of new room)"`: make a new room (on both matrix and slack). This is the preferred way to make a matrix room, because it will be automatically added to the community
-
-        These commands are useable only from the matrix side:
-
-        * `!inviteall`: make the bot invite you to all rooms currently in the community
-        * `!autoinvite` / `!autoinvite [disable]`: Switch on/off automatic invitations to new rooms when they are created
         """)
 
         if message.connector is self.matrix_connector:
+            help_text += dedent("""\
+
+            These additional commands are only available here on the matrix side:
+
+            * `!inviteall`: make the bot invite you to all rooms currently in the community
+            * `!autoinvite` / `!autoinvite [disable]`: Switch on/off automatic invitations to new rooms when they are created
+            """)
+
             help_text = markdown(help_text)
 
         return await message.respond(help_text)
