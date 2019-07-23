@@ -2,8 +2,10 @@ import parse
 
 from opsdroid.events import Message, UserInvite
 
+from .slack import SlackMixin
 
-class SlackBridgeMixin:
+
+class SlackBridgeMixin(SlackMixin):
     """
     Methods relating to interfacing with the Slack bridge.
     """
