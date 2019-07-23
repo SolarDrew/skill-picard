@@ -129,6 +129,7 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
 
             topic.target = matrix_room_id
             topic.connector = self.matrix_connector
+            topic.description = self.clean_slack_message(topic.description)
 
             await self.opsdroid.send(topic)
 

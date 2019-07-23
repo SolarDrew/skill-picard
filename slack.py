@@ -120,3 +120,12 @@ class SlackMixin:
         channel_map = await self.get_slack_channel_mapping()
         name_to_id = {c['name']: k for k, c in channel_map.items()}
         return name_to_id[slack_channel_name]
+
+    def clean_slack_message(self, message):
+        message = message.replace("<", "")
+        message = message.replace(">", "")
+        message = message.replace("&lt;", "<")
+        message = message.replace("&gt;", ">")
+        message = message.replace("&amp;", "&")
+        return message
+
