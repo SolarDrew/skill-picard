@@ -172,7 +172,6 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
             old_name = await self.get_slack_channel_name(slack_channel_id)
 
         if room_name.connector is self.slack_connector:
-            print("from slack")
             if self._slack_rename_lock.locked():
                 return
             slack_channel_id = room_name.target
