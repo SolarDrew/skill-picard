@@ -259,18 +259,14 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         """
         React to a new user joining the team on slack.
         """
-        slack_room_id = await self.create_new_slack_room()
-        await self.opsdroid.send(UserInvite(user=join.user,
-                                            target=slack_room_id,
-                                            connector=self.slack_connector))
+        return await self.send_slack_welcome_message(join.user)
 
-        await self.send_slack_welcome_message(slack_room_id)
-
-    async def send_slack_welcome_message(self, slack_room_id):
+    async def send_slack_welcome_message(self, slack_user_id):
         """
         Send the welcome message to a slack 1-1.
         """
         welcome_message = self.config.get('welcome', {}).get('slack')
+        slack_room_id = await self.get_slack_direct_message_channel(slack_user_id)
         if welcome_message:
             return await self.opsdroid.send(Message(dedent(welcome_message),
                                                     target=slack_room_id,

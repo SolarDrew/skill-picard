@@ -2,13 +2,15 @@ import asyncio
 import logging
 from textwrap import dedent
 
+import slacker
 from markdown import markdown
+
 from opsdroid.constraints import constrain_connectors
-from opsdroid.matchers import match_regex
 from opsdroid.events import (JoinRoom, Message, NewRoom, OpsdroidStarted,
                              RoomDescription, UserInvite)
+from opsdroid.matchers import match_regex
 
-from .constraints import ignore_appservice_users, admin_command
+from .constraints import admin_command, ignore_appservice_users
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -132,25 +134,24 @@ class PicardCommands:
         return matrix_room_id
 
     @match_regex('!welcomeall')
+    @admin_command
     @ignore_appservice_users
     async def on_welcome_all(self, message):
         """Send the appropriate welcome message to all current users"""
-        matrix_users = await self.get_all_community_users()
-        for user in matrix_users:
-            await self.send_matrix_welcome_message(user)
-
         slack_users = await self.get_all_slack_users()
         for user in slack_users:
-            await self.send_slack_welcome_message()
+            try:
+                await self.send_slack_welcome_message(user)
+            except slacker.Error:
+                _LOGGER.exception("Failed to send welcome message")
 
-
-    @match_regex("!skip (?P<flag>\w+)")
+    @match_regex(r"!skip (?P<flag>\w+)")
     @constrain_connectors("matrix")
     @ignore_appservice_users
     async def room_skip(self, message):
         return await self.room_skip_command(message, True)
 
-    @match_regex("!unskip (?P<flag>\w+)")
+    @match_regex(r"!unskip (?P<flag>\w+)")
     @constrain_connectors("matrix")
     @ignore_appservice_users
     async def room_unskip(self, message):

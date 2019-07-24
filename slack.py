@@ -137,4 +137,9 @@ class SlackMixin:
         return message
 
     async def get_all_slack_users(self):
-        return await self.slacker_bot_client.users.list()
+        response = await self.slacker_bot_client.users.list()
+        return [m['id'] for m in response.body['members']]
+
+    async def get_slack_direct_message_channel(self, slack_user_id):
+        response = await self.slacker_bot_client.im.open(slack_user_id)
+        return response.body['channel']['id']
