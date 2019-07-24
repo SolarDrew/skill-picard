@@ -234,18 +234,8 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         """
         Send the welcome message to a matrix 1-1.
         """
-        welcome_message = dedent(f"""\
-        Welcome to [Python in Astronomy 2019](http://openastronomy.org/pyastro/2019/)! I'm the PyAstro bot. Here's some information you might find useful.
-
-        The [PyAstro matrix community](https://matrix.to/#/+pyastro:openastronomy.org) is one half of a bridged matrix/slack chat platform. All messages in all rooms in this community are duplicated on the slack side, and vice versa. This means that you should have the same experience on either side of the bridge and can use your preference of slack or Matrix without worrying about missing anything. The main exception to this is direct messages (DMs), which can't be sent across the bridge. Also note that unlike the slack team, which is invitation only and has limited message history, these rooms are open to guests and their entire history is publicly viewable.
-
-        When a room is created on either side of the bridge, the matrix room will be added to this community automatically. To keep up to date with new rooms, you can ask me to invite you to rooms as they are created, by running the command `!autoinvite` in this room. Alternatively you can ask for an invitation to all currently existing rooms with `!inviteall`. To create a room, run `!createroom (new room name) "(topic of new room)"`. To see these commands again at any time you can run `!help`.
-
-        **Remember that all users are expected to follow the conference [code of conduct](http://openastronomy.org/pyastro/code-of-conduct/)**.
-
-        Enjoy the conference!
-        """)
-        welcome_message = markdown(welcome_message)
+        welcome_message = markdown(dedent(self.config.get('welcome', {}).get(
+            'matrix', "Welcome! I'm a helpful robot.")))
         return await self.opsdroid.send(Message(welcome_message,
                                                 target=matrix_room_id,
                                                 connector=self.matrix_connector))
