@@ -71,6 +71,16 @@ class MatrixMixin:
 
         return matrix_room_id
 
+    async def create_new_matrix_direct_message(self, mxid):
+        content = {'is_direct': True,
+                   'invite': [mxid],
+                   'preset': 'trusted_private_chat'}
+
+        resp = await self.matrix_api._send("POST",
+                                           "/createRoom",
+                                           content)
+        return resp['room_id']
+
     async def configure_new_matrix_room_pre_bridge(self, matrix_room_id, is_public):
         if is_public:
             await self.opsdroid.send(MatrixJoinRules("public",
