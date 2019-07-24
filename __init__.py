@@ -132,11 +132,11 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         topic = await self.get_slack_channel_topic(channel.target)
 
         # Setup the matrix room
-        await self.configure_new_matrix_room_post_bridge(matrix_room_id,
-                                                         channel.name,
-                                                         topic)
+        canonical_alias = await self.configure_new_matrix_room_post_bridge(matrix_room_id,
+                                                                           channel.name,
+                                                                           topic)
 
-        await self.announce_new_room(matrix_room_id, channel.target)
+        await self.announce_new_room(canonical_alias, channel.user, topic)
 
     @match_event(RoomDescription)
     async def on_topic_change(self, topic):
@@ -242,20 +242,23 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
                                                 target=matrix_room_id,
                                                 connector=self.matrix_connector))
 
-    async def announce_new_room(self, matrix_room_id, slack_channel_id):
+    async def announce_new_room(self, matrix_room_alias, username, topic):
         """
         Send a message to the configured room announcement room.
         """
+        room_name = self.config.get("announcement_room_name")
+        if not room_name:
+            return
+        matrix_room_id = await self.matrix_room_id_from_slack_channel_name(room_name)
 
-        # Stuart proposes the wording of this be:
-        # "<username> just created the <room_id> [room/channel] for discussing <topic>"
+        pill = f'<a href="https://matrix.to/#/{matrix_room_alias}">{matrix_room_alias}</a>'
 
-        # await self.opsdroid.send(Message(
-        #     text="A new room was created! Head to #{matrix_room_alias} to follow the conversation",
-        #     target=matrix_room_id,
-        #     connector=self.matrix_connector))
+        text = f"{username} just created the {pill} room"
+        if topic:
+            text += f" for discussing '{topic}'"
+        text += '.'
 
-        # await self.opsdroid.send(Message(
-        #     text="A new room was created! Head to #{slack_channel_name} to follow the conversation",
-        #     target=slack_channel_id,
-        #     connector=self.slack_connector))
+        await self.opsdroid.send(Message(
+            text=text,
+            target=matrix_room_id,
+            connector=self.matrix_connector))
