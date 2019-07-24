@@ -130,3 +130,15 @@ class PicardCommands:
         await self.announce_new_room(matrix_room_alias, message.user, topic)
 
         return matrix_room_id
+
+    @match_regex('!welcomeall')
+    @ignore_appservice_users
+    async def on_welcome_all(self, message):
+        """Send the appropriate welcome message to all current users"""
+        matrix_users = await self.get_all_community_users()
+        for user in matrix_users:
+            await self.send_matrix_welcome_message(user)
+
+        slack_users = await self.get_all_slack_users()
+        for user in slack_users:
+            await self.send_slack_welcome_message()
