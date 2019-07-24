@@ -43,6 +43,7 @@ class PicardCommands:
     @constrain_connectors("matrix")
     @ignore_appservice_users
     async def on_invite_all(self, message):
+        await message.respond("Inviting you to all rooms...")
         rooms = await self.get_all_community_rooms()
         for r in rooms:
             await message.respond(UserInvite(user=message.raw_event['sender'],
@@ -138,6 +139,7 @@ class PicardCommands:
     @ignore_appservice_users
     async def on_welcome_all(self, message):
         """Send the appropriate welcome message to all current users"""
+        await message.respond("Sending out welcome messages.")
         slack_users = await self.get_all_slack_users()
         for user in slack_users:
             try:
