@@ -135,3 +135,6 @@ class SlackMixin:
         message = message.replace("&gt;", ">")
         message = message.replace("&amp;", "&")
         return message
+
+    async def get_all_slack_users(self):
+        return await self.slacker_bot_client.users.list()
