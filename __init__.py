@@ -207,6 +207,10 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         await invite.respond(JoinRoom())
 
         if await self.is_one_to_one_chat(invite.target):
+            dms = await self.opsdroid.memory.get("direct_messages") or {}
+            dms.update({invite.raw_event['sender']: invite.target})
+            await self.opsdroid.memory.put("direct_messages", dms)
+
             return await self.send_matrix_welcome_message(invite.target)
 
     @match_event(JoinGroup)
@@ -215,10 +219,14 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         """
         React to a new user joining the community on matrix.
         """
-        matrix_room_id = await self.create_new_matrix_room()
-        await self.opsdroid.send(UserInvite(user=join.user,
-                                            target=matrix_room_id,
-                                            connector=self.matrix_connector))
+        dms = await self.opsdroid.memory.get("direct_messages") or {}
+
+        if join.user not in dms:
+            matrix_room_id = await self.create_new_matrix_direct_message(join.user)
+            dms.update({join.user: matrix_room_id})
+            await self.opsdroid.memory.put("direct_messages", dms)
+        else:
+            matrix_room_id = dms[join.user]
 
         await self.send_matrix_welcome_message(matrix_room_id)
 

@@ -163,7 +163,7 @@ class MatrixCommunityMixin:
                                                          target=matrix_room_id,
                                                          connector=self.matrix_connector))
 
-    # @match_crontab('* * * * *')
+    @match_crontab('* * * * *')
     async def _watch_for_new_users(self, message):
         if "community_id" not in self.config:
             return
