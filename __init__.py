@@ -226,11 +226,12 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         """
         Send the welcome message to a matrix 1-1.
         """
-        welcome_message = markdown(dedent(self.config.get('welcome', {}).get(
-            'matrix', "Welcome! I'm a helpful robot.")))
-        return await self.opsdroid.send(Message(welcome_message,
-                                                target=matrix_room_id,
-                                                connector=self.matrix_connector))
+        welcome_message = self.config.get('welcome', {}).get('matrix')
+        if welcome_message:
+            welcome_message = markdown(dedent(welcome_message))
+            return await self.opsdroid.send(Message(welcome_message,
+                                                    target=matrix_room_id,
+                                                    connector=self.matrix_connector))
 
     @match_event(JoinGroup)
     @constrain_slack_connector
@@ -249,11 +250,11 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         """
         Send the welcome message to a slack 1-1.
         """
-        welcome_message = dedent(self.config.get('welcome', {}).get(
-            'slack', "Welcome! I'm a helpful robot."))
-        return await self.opsdroid.send(Message(welcome_message,
-                                                target=slack_room_id,
-                                                connector=self.slack_connector))
+        welcome_message = self.config.get('welcome', {}).get('slack')
+        if welcome_message:
+            return await self.opsdroid.send(Message(dedent(welcome_message),
+                                                    target=slack_room_id,
+                                                    connector=self.slack_connector))
 
     async def announce_new_room(self, matrix_room_alias, username, topic):
         """
