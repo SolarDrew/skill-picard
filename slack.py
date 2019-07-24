@@ -126,7 +126,7 @@ class SlackMixin:
     async def get_slack_channel_id_from_name(self, slack_channel_name):
         channel_map = await self.get_slack_channel_mapping()
         name_to_id = {c['name']: k for k, c in channel_map.items()}
-        return name_to_id[slack_channel_name]
+        return name_to_id[slack_channel_name.lower()]
 
     def clean_slack_message(self, message):
         message = message.replace("<", "")

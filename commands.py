@@ -130,3 +130,38 @@ class PicardCommands:
         await self.announce_new_room(matrix_room_alias, message.user, topic)
 
         return matrix_room_id
+
+    @match_regex("!skip (?P<flag>\w+)")
+    @constrain_connectors("matrix")
+    @ignore_appservice_users
+    async def room_skip(self, message):
+        return await self.room_skip_command(message, True)
+
+    @match_regex("!unskip (?P<flag>\w+)")
+    @constrain_connectors("matrix")
+    @ignore_appservice_users
+    async def room_unskip(self, message):
+        return await self.room_skip_command(message, False)
+
+    async def room_skip_command(self, message, skip):
+        sender = message.raw_event['sender']
+        if sender not in self.config['users_as_admin']:
+            await message.respond("You are not authorised to perform this action.")
+            return
+
+        matrix_room_id = message.target
+        flag = message.regex['flag']
+
+        flags = ("name", "description", "avatar")
+        if flag not in flags:
+            await message.respond(f"The skip argument must be one of {flags}, not {flag}")
+
+        with self.memory[matrix_room_id]:
+            options = await self.opsdroid.memory.get("picard.options") or {}
+
+        options.update({f"skip_room_{flag}": skip})
+
+        with self.memory[matrix_room_id]:
+            await self.opsdroid.memory.put("picard.options", options)
+
+        await message.respond("Your room settings have been updated.")

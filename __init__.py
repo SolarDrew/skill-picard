@@ -142,8 +142,12 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
     async def on_topic_change(self, topic):
         """Handle a topic change."""
         if topic.connector is self.matrix_connector:
-            slack_channel_id = await self.slack_channel_id_from_matrix_room_id(topic.target)
-            await self.set_slack_channel_description(slack_channel_id, topic.description)
+            with self.memory[topic.target]:
+                room_options = await self.opsdroid.memory.get("picard.options") or {}
+
+            if not room_options.get("skip_room_description"):
+                slack_channel_id = await self.slack_channel_id_from_matrix_room_id(topic.target)
+                await self.set_slack_channel_description(slack_channel_id, topic.description)
 
         elif topic.connector is self.slack_connector:
             user_id = await self._id_for_slack_user_token()
@@ -152,12 +156,15 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
 
             slack_channel_name = await self.get_slack_channel_name(topic.target)
             matrix_room_id = await self.matrix_room_id_from_slack_channel_name(slack_channel_name)
+            with self.memory[matrix_room_id]:
+                room_options = await self.opsdroid.memory.get("picard.options") or {}
 
-            topic.target = matrix_room_id
-            topic.connector = self.matrix_connector
-            topic.description = self.clean_slack_message(topic.description)
+            if not room_options.get("skip_room_description"):
+                topic.target = matrix_room_id
+                topic.connector = self.matrix_connector
+                topic.description = self.clean_slack_message(topic.description)
 
-            await self.opsdroid.send(topic)
+                await self.opsdroid.send(topic)
 
     @match_event(RoomName)
     async def on_name_change(self, room_name):
@@ -181,6 +188,11 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
 
             if old_name == name:
                 return
+
+        with self.memory[matrix_room_id]:
+            room_options = await self.opsdroid.memory.get("picard.options") or {}
+        if room_options.get("skip_room_name"):
+            return
 
         # Remove the aliases for the old name
         await self.remove_room_aliases(old_name)
