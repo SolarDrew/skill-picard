@@ -126,7 +126,7 @@ class SlackMixin:
     async def get_slack_channel_id_from_name(self, slack_channel_name):
         channel_map = await self.get_slack_channel_mapping()
         name_to_id = {c['name']: k for k, c in channel_map.items()}
-        return name_to_id[slack_channel_name]
+        return name_to_id[slack_channel_name.lower()]
 
     def clean_slack_message(self, message):
         message = message.replace("<", "")
@@ -137,4 +137,9 @@ class SlackMixin:
         return message
 
     async def get_all_slack_users(self):
-        return await self.slacker_bot_client.users.list()
+        response = await self.slacker_bot_client.users.list()
+        return [m['id'] for m in response.body['members']]
+
+    async def get_slack_direct_message_channel(self, slack_user_id):
+        response = await self.slacker_bot_client.im.open(slack_user_id)
+        return response.body['channel']['id']

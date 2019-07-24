@@ -117,26 +117,30 @@ class MatrixMixin:
         """
         Given Picard's config, setup the matrix side as appropriate.
         """
+        with self.memory[matrix_room_id]:
+            room_options = await self.opsdroid.memory.get("picard.options") or {}
+
         canonical_alias = await self.configure_room_aliases(matrix_room_id, name)
 
         # Set Room Name
         room_name_template = self.config.get('room_name_template')
-        # TODO: Undo this, and use a state event in the room to skip name setting.
-        if room_name_template and name != "general":
+
+        if room_name_template and not room_options.get("skip_room_name"):
             await self.opsdroid.send(RoomName(target=matrix_room_id,
                                               name=room_name_template.format(name=name),
                                               connector=self.matrix_connector))
 
         # Set Room Image
         url = self.config.get("room_avatar_url")
-        if url:
+        if url and not room_options.get("skip_room_avatar"):
             await self.opsdroid.send(RoomImage(Image(url=url),
                                                target=matrix_room_id,
                                                connector=self.matrix_connector))
 
         # Set Room Description
-        await self.opsdroid.send(RoomDescription(topic, target=matrix_room_id,
-                                                 connector=self.matrix_connector))
+        if not room_options.get("skip_room_description"):
+            await self.opsdroid.send(RoomDescription(topic, target=matrix_room_id,
+                                                     connector=self.matrix_connector))
 
         # Add to community
         await self.add_room_to_community(matrix_room_id)
