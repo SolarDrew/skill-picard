@@ -144,10 +144,6 @@ class MatrixCommunityMixin:
         Set the m.room.related_groups state from a room
         """
         groups = self.config.get("related_groups", [])
-        community_id = self.config.get("community_id")
-        if community_id:
-            groups.append(community_id)
-
         if not groups:
             return
 
