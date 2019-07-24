@@ -76,7 +76,7 @@ class PicardCommands:
 
         return await message.respond("Autoinvite disabled.")
 
-    @match_regex("!createroom (?P<name>.+?)(?P<topic> .+)?")
+    @match_regex(r"!createroom (?P<name>[^\s]+)( (?P<topic>.+))?")
     @ignore_appservice_users
     async def on_create_room_command(self, message):
         await message.respond('Creating room please wait, this takes a little while...')
