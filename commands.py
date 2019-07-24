@@ -105,7 +105,8 @@ class PicardCommands:
             matrix_room_id, name, topic)
 
         # Set the description of the slack channel
-        await self.set_slack_channel_description(slack_channel_id, topic)
+        if topic:
+            await self.set_slack_channel_description(slack_channel_id, topic)
 
         # Invite Command User
         if message.connector is self.matrix_connector:

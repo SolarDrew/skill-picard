@@ -141,13 +141,17 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
     @match_event(RoomDescription)
     async def on_topic_change(self, topic):
         """Handle a topic change."""
+        _LOGGER.debug(f"Got RoomDescription object from {topic.connector.name}")
         if topic.connector is self.matrix_connector:
             with self.memory[topic.target]:
                 room_options = await self.opsdroid.memory.get("picard.options") or {}
 
             if not room_options.get("skip_room_description"):
+                _LOGGER.debug(f"Setting slack room description to: {topic.description}")
                 slack_channel_id = await self.slack_channel_id_from_matrix_room_id(topic.target)
                 await self.set_slack_channel_description(slack_channel_id, topic.description)
+            else:
+                _LOGGER.debug("Not setting topic because of room options.")
 
         elif topic.connector is self.slack_connector:
             user_id = await self._id_for_slack_user_token()
@@ -160,11 +164,14 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
                 room_options = await self.opsdroid.memory.get("picard.options") or {}
 
             if not room_options.get("skip_room_description"):
+                _LOGGER.debug(f"Setting matrix room description to: {topic.description}")
                 topic.target = matrix_room_id
                 topic.connector = self.matrix_connector
                 topic.description = self.clean_slack_message(topic.description)
 
                 await self.opsdroid.send(topic)
+            else:
+                _LOGGER.debug("Not setting topic because of room options.")
 
     @match_event(RoomName)
     async def on_name_change(self, room_name):
