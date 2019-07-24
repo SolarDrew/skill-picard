@@ -21,7 +21,7 @@ class PicardCommands:
         Hi {message.user}! Here are the commands you can use in the chat. Please use these commands in a private chat with the bot, to avoid spamming other users.
 
         * `!help`: show this help message
-        * `!createroom (name of new room) "(topic of new room)"`: make a new room (on both matrix and slack). On the matrix side, this is the only way to make a new room, because it will be automatically added to the community and bridged to slack. From the slack side, you can either run this command or create the room normally through the UI, both will work correctly on the matrix side.
+        * `!createroom (name of new room) "[topic of new room, optional]"`: make a new room (on both matrix and slack). On the matrix side, this is the only way to make a new room, because it will be automatically added to the community and bridged to slack. From the slack side, you can either run this command or create the room normally through the UI, both will work correctly on the matrix side.
         """)
 
         if message.connector is self.matrix_connector:
@@ -74,7 +74,7 @@ class PicardCommands:
 
         return await message.respond("Autoinvite disabled.")
 
-    @match_regex('!createroom (?P<name>.+?) "(?P<topic>.+?)"')
+    @match_regex("""!createroom (?P<name>.+?) ("|'(?P<topic>.+)"|')?""")
     @ignore_appservice_users
     async def on_create_room_command(self, message):
         await message.respond('Creating room please wait, this takes a little while...')
