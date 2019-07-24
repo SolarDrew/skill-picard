@@ -138,7 +138,7 @@ class MatrixMixin:
                                                connector=self.matrix_connector))
 
         # Set Room Description
-        if not room_options.get("skip_room_description"):
+        if topic and not room_options.get("skip_room_description"):
             await self.opsdroid.send(RoomDescription(topic, target=matrix_room_id,
                                                      connector=self.matrix_connector))
 
