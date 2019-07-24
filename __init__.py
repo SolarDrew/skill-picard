@@ -232,6 +232,29 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
                                                 target=matrix_room_id,
                                                 connector=self.matrix_connector))
 
+    @match_event(JoinGroup)
+    @constrain_slack_connector
+    async def on_new_team_user(self, join):
+        """
+        React to a new user joining the team on slack.
+        """
+        slack_room_id = await self.create_new_slack_room()
+        await self.opsdroid.send(UserInvite(user=join.user,
+                                            target=slack_room_id,
+                                            connector=self.slack_connector))
+
+        await self.send_slack_welcome_message(slack_room_id)
+
+    async def send_slack_welcome_message(self, slack_room_id):
+        """
+        Send the welcome message to a slack 1-1.
+        """
+        welcome_message = dedent(self.config.get('welcome', {}).get(
+            'slack', "Welcome! I'm a helpful robot."))
+        return await self.opsdroid.send(Message(welcome_message,
+                                                target=slack_room_id,
+                                                connector=self.slack_connector))
+
     async def announce_new_room(self, matrix_room_alias, username, topic):
         """
         Send a message to the configured room announcement room.
