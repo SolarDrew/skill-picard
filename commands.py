@@ -46,6 +46,10 @@ class PicardCommands:
         await message.respond("Inviting you to all rooms...")
         rooms = await self.get_all_community_rooms()
         for r in rooms:
+            # If the room is archived don't invite people to it.
+            with self.memory[r]:
+                if await self.opsdroid.get("is_archived"):
+                    continue
             await message.respond(UserInvite(user=message.raw_event['sender'],
                                              target=r,
                                              connector=self.matrix_connector))
