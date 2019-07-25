@@ -1,32 +1,43 @@
 # skill-picard
 
-This opsdroid skill enables the bridging of a slack team to a matrix communtiy. It uses the
+*The re-write of this skill was to facilitate a specific conference. There are many more things we want to do with this, some of which you can see in [this project](https://github.com/SolarDrew/skill-picard/projects/1)*
+
+This opsdroid skill enables the bridging of a slack team to a matrix community. It uses the
 [slack appservice](https://github.com/matrix-org/matrix-appservice-slack) to
 bridge individual rooms, but it monitors slack for new channels and creates
 rooms on matrix for these new channels and then configures the appservice to
-bridge them. It also will add these rooms to a matrix communtiy.
+bridge them. It also will add these rooms to a matrix community.
 
+This skill was written to facilitate a bridged chat platform for a conference.
 
 **This only works with version >=0.2.0 of the slack appservice, when configured with the Events API.**
 
+This skill also implements a set of commands for users:
 
-For the community features to work you will need
-[this](https://github.com/matrix-org/matrix-python-sdk/pull/179/) version of the
-python SDK for the groups support.
+* `!createroom <name> [topic]` - Create a new room and bridge it to the configured slack team. (Works from Matrix and Slack.)
+* `!inviteall` - Invite the user to all rooms in the community (matrix only).
+* `!autoinvite [disable]` - Invite the user to all future rooms (matrix only).
 
 
-All the rooms created or linked by this bridge will be made public.
+As well as this it reacts to new rooms on slack, changes of room/channel name
+and description on both matrix and slack. Also it will react to archive and
+unarchive events on slack and it can be configured to send welcome messages (in
+DMs) to new users when they join both the slack team and the matrix community.
+
+
+As well as the user facing commands there are a set of admin commands:
+
+* `!bridgeall` - Bridge all rooms in the slack channel to matrix (will also be run on skill start by default).
+* `!welcomeall` - Send welcome DMs to all users already in the slack team.
+* `![un]skip name/description/avatar` - Run in a room, and will not bridge the room name, topic and avatar when the room is bridged (normally with `!bridgeall`).
 
 
 # Installation
 
 
-
 ### Configure the Application Service
 To use this you need to setup the 
-[slack appservice](https://github.com/matrix-org/matrix-appservice-slack) on the
-events API branch
-[here](https://github.com/matrix-org/matrix-appservice-slack/pull/66).
+[slack appservice](https://github.com/matrix-org/matrix-appservice-slack).
 
 
 ### Configure a Bot User
@@ -53,6 +64,8 @@ of the slack appservice:
        - team_domain_change
        - message.channels
        - message.groups (if you want to bridge private channels)
+       - reactions.added
+       - reactions.removed
        
 5. Click on `OAuth & Permissions` and add the following scopes:
 
@@ -62,6 +75,7 @@ of the slack appservice:
    - channels:history
    - chat:write:bot 
    - chat:write:user
+   - team:read
    
    Note: any media uploaded to matrix is currently accessible by anyone who knows the url.
    In order to make slack files visible to matrix users, this bridge will make slack files
@@ -95,8 +109,8 @@ the configuration file must contain the following two sections, to configure bot
 
 #### Configuring the matrix connector
 
-This skill has to be used in combination with the 
-[matrix connector](https://github.com/opsdroid/connector-matrix). It expects the
+This skill has to be used in combination with both the matrix and slack
+connectors, they **must** be named `'matrix'` and `'slack'`. It expects the
 matrix connector to be configured with two rooms, one named "main" and one named
 "bridge". i.e.
 
@@ -109,6 +123,10 @@ connectors:
     rooms:
       main: "#picard:matrix.federation.org"
       bridge: "!YOhwXiVmjNBNnUdHtX:matrix.federation.org"
+
+  - name: slack
+    api-token: "xoxb-xxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx"
+    bot-name: "Picard"
 ```
 
 the "main" room will be used to report the status of the bot, and can be used to
@@ -123,31 +141,32 @@ configuration options for this skill:
 
 
 ```
-- name: picard
-  repo: https://github.com/SolarDrew/skill-matrixslack.git
-  slack_bot_token: #  Bot User OAuth Access Token
-  slack_user_token: #  OAuth Access Token 
-  slack_bot_name: # The username of the bot in your team
-  appservice_bot_mxid: # The matrix ID of the appservice bot
-  # Matrix room alias templates, must be a list, the first one will be set as the canonical alias.
-  # Can include `{name}` to be replaced with the name of the channel (i.e the slack channel name)
-  room_alias_templates:
-    - "#enterprise_{name}:federation.org"
-  # The template to format a channel name before setting it as the room name on matrix.
-  room_name_template: "{name}"
-  room_avatar_url: null # http or mxc url for the room avatar
-  users_as_admin:
-    - "@nechayev:matrix.federation.org"
-    - "@riker:matrix.federation.org"
-  users_to_invite:
-    - "@_neb_github:matrix.org"
-  allow_at_room: false # Enable everyone to send @room notifications in matrix. (This enables @channel to work in both slack and matrix)
-  make_public: True  # Make the rooms and the community publically joinable and set history to viewable by Anyone
-  community_id: # The full ID of the communtiy you want rooms added to
-  invite_communtiy_to_rooms: false # Invite all members of the communtiy to new rooms
-  related_groups: # A list of groups to be set as "related groups in all rooms"
-```
+skills:
+  - name: picard
+    repo: https://github.com/solardrew/skill-picard.git
+    no-cache: true
+    slack_bot_token: "xoxb-xxxxxxxxxxx-xxxxxxxxxx" #  Bot User OAuth Access Token
+    slack_user_token: "xoxp-xxxxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxx" #  OAuth Access Token
+    appservice_bot_mxid: "@slackbot:federation.org"
+    slack_bot_name: "Picard"
+    room_alias_templates: 
+      - "#_enterprise_{name}:federation.org"
+    room_name_template: "Enterprise {name}"
+    announcement_room_name: "general"
+    room_avatar_url: "mxc://federation.org/BlgDmTEkHUvXPGHpIpjPxVUt"
+    users_as_admin:
+      - "@nechayev:federation.org"
+      - "@riker:federation.org"
+    users_to_invite:
+      - "@_neb_github:matrix.org"
+    make_public: false  # Make the rooms and the community publically joinable and set history to viewable by Anyone
+    allow_at_room: true # Enable everyone to send @room notifications in matrix. (This enables @channel to work in both slack and matrix)
+    copy_from_slack_startup: false # Run the !bridgeall command when opsdroid starts (ensures that all rooms exist if the bot has been offline)
 
+    community_id: "+enterprise:federation.org"  # The full ID of the communtiy you want rooms added to, if not specified no communtiy interations will happen.
+    related_groups: # A list of groups to be set as "related groupsi" in all rooms, for displaying flair.
+      - "+stargazer:federation.org"
+```
 
 ## Why is this called Picard?
 
