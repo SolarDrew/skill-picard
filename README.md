@@ -42,6 +42,8 @@ To use this you need to setup the
 
 ### Configure a Bot User
 
+This should be the same bot user as for the appservice.
+
 To do this you need to setup a slack bot by following these steps lovingly
 borrowed from the
 [README](https://github.com/perissology/matrix-appservice-slack/blob/master/README.md#recommended)
@@ -177,7 +179,7 @@ skills:
 
 #### Configure an Opsdroid Database
 
-For this skill to work as intended you need to configure the [`database-matrix`](https://github.com/SolarDrew/database-matrix/) opsdroid memory provider. This database provider uses matrix room state to back the opsdroid memory. This means that room preferences as well as seem community users and known DMs are all stored in room state (in both the `'main'` room and in the specific room in the case of room preferences).
+For this skill to work as intended you need to configure the [`database-matrix`](https://github.com/SolarDrew/database-matrix/) opsdroid memory provider. This database provider uses matrix room state to back the opsdroid memory. This means that room preferences as well as seen community users and known DMs are all stored in room state (in both the `'main'` room and in the specific room in the case of room preferences).
 
 ```
 databases:
