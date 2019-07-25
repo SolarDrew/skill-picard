@@ -166,7 +166,26 @@ skills:
     community_id: "+enterprise:federation.org"  # The full ID of the communtiy you want rooms added to, if not specified no communtiy interations will happen.
     related_groups: # A list of groups to be set as "related groupsi" in all rooms, for displaying flair.
       - "+stargazer:federation.org"
+
+    welcome:
+      matrix: |
+        I'm the Picard bot.
+
+      slack: >
+        I'm the Picard bot.
 ```
+
+#### Configure an Opsdroid Database
+
+For this skill to work as indended you need to configure the [`database-matrix`](https://github.com/SolarDrew/database-matrix/) opsdroid memory provider. This database provider uses matrix room state to back the opsdroid memory. This means that room preferences as well as seem community users and known DMs are all stored in room state (in both the `'main'` room and in the specific room in the case of room preferences).
+
+```
+databases:
+  - name: matrix
+    repo: https://github.com/SolarDrew/database-matrix
+    branch: events
+```
+
 
 ## Why is this called Picard?
 
