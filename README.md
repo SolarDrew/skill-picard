@@ -177,7 +177,7 @@ skills:
 
 #### Configure an Opsdroid Database
 
-For this skill to work as indended you need to configure the [`database-matrix`](https://github.com/SolarDrew/database-matrix/) opsdroid memory provider. This database provider uses matrix room state to back the opsdroid memory. This means that room preferences as well as seem community users and known DMs are all stored in room state (in both the `'main'` room and in the specific room in the case of room preferences).
+For this skill to work as intended you need to configure the [`database-matrix`](https://github.com/SolarDrew/database-matrix/) opsdroid memory provider. This database provider uses matrix room state to back the opsdroid memory. This means that room preferences as well as seem community users and known DMs are all stored in room state (in both the `'main'` room and in the specific room in the case of room preferences).
 
 ```
 databases:
