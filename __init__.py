@@ -54,6 +54,9 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
 
             return
 
+        if isinstance(message, Message):
+            await message.respond("Running the bridgeall command.")
+
         channels = await self.get_slack_channel_mapping()
         for slack_channel_id, channel in channels.items():
             slack_channel_name = channel['name']
@@ -151,7 +154,7 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
                 slack_channel_id = await self.slack_channel_id_from_matrix_room_id(topic.target)
                 await self.set_slack_channel_description(slack_channel_id, topic.description)
             else:
-                _LOGGER.debug("Not setting topic because of room options.")
+                _LOGGER.debug("Matrix Connector: Not setting topic because of room options.")
 
         elif topic.connector is self.slack_connector:
             user_id = await self._id_for_slack_user_token()
@@ -171,7 +174,8 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
 
                 await self.opsdroid.send(topic)
             else:
-                _LOGGER.debug("Not setting topic because of room options.")
+                _LOGGER.debug(f"{room_options}")
+                _LOGGER.debug("Slack Connector: Not setting topic because of room options.")
 
     @match_event(RoomName)
     async def on_name_change(self, room_name):
