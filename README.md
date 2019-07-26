@@ -111,10 +111,10 @@ or run from docker (you will need to build your own docker image until the #951 
     docker run --rm -it -v /path/to/configuration.yaml:/etc/opsdroid/configuration.yaml:ro opsdroid/opsdroid:latest
     
 
-the configuration file must contain the following two sections, to configure both the matrix connector and the picard bt:
+the configuration file must contain the following three sections, to configure both the matrix and slack connectors, the picard skill and the matrix database:
 
 
-#### Configuring the matrix connector
+#### Configuring the Connectors
 
 This skill has to be used in combination with both the matrix and slack
 connectors, they **must** be named `'matrix'` and `'slack'`. It expects the
@@ -141,7 +141,7 @@ issue commands to the bot. The "bridge" room is the admin room of the
 [slack appservice](https://github.com/matrix-org/matrix-appservice-slack).
 
 
-#### Configuring the picard bot
+#### Configuring the Picard Skill
 
 Given this configuration of the matrix connector the following are the
 configuration options for this skill:
@@ -182,7 +182,7 @@ skills:
         I'm the Picard bot.
 ```
 
-#### Configure an Opsdroid Database
+#### Configure the Opsdroid Matrix Database
 
 For this skill to work as intended you need to configure the [`database-matrix`](https://github.com/SolarDrew/database-matrix/) opsdroid memory provider. This database provider uses matrix room state to back the opsdroid memory. This means that room preferences as well as seen community users and known DMs are all stored in room state (in both the `'main'` room and in the specific room in the case of room preferences).
 
