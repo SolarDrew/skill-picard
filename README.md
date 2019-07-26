@@ -58,7 +58,7 @@ of the slack appservice:
    the rooms.
    
 4. Click on `Event Subscriptions` and enable them. At this point, the bridge needs to be
-   started as slack will do some verification of the request rul. The request url should be
+   started as slack will do some verification of the request url. The request url should be
    `https://$HOST:$SLACK_PORT"`. Then add the following events and save:
    
    Bot User Events:
@@ -93,11 +93,16 @@ of the slack appservice:
 ### Configure Picard Bot
 
 This bot uses the client-server API so can be configured on any machine. It uses
-[opsdroid](http://opsdroid.readthedocs.io/), which can be installed via pip:
+[opsdroid](http://opsdroid.readthedocs.io/). 
 
-    pip install opsdroid
+**Currently Picard requires [this](https://github.com/opsdroid/opsdroid/pull/951) branch of opsdroid.**
 
-or run from docker:
+
+Which can be installed via pip:
+
+    pip install git+https://github.com/SolarDrew/opsdroid.git@events
+
+or run from docker (you will need to build your own docker image until the #951 is released):
 
     # Pull the container image
     docker pull opsdroid/opsdroid:latest
