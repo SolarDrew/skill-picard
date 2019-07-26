@@ -1,3 +1,8 @@
+"""
+This file contains the base Picard skill class and methods relating to reacting
+to different types of events.
+"""
+
 import asyncio
 import logging
 from textwrap import dedent
@@ -14,13 +19,13 @@ from opsdroid.events import (JoinGroup, JoinRoom, Message, NewRoom,
 from opsdroid.matchers import match_event, match_regex
 from opsdroid.skill import Skill
 
-from .commands import PicardCommands
-from .constraints import (admin_command, constrain_matrix_connector,
-                          constrain_slack_connector, ignore_appservice_users)
-from .matrix import MatrixMixin
-from .matrix_groups import MatrixCommunityMixin
-from .slackbridge import SlackBridgeMixin
-from .util import RoomMemory
+from .picard.commands import PicardCommands
+from .picard.constraints import (admin_command, constrain_matrix_connector,
+                                 constrain_slack_connector, ignore_appservice_users)
+from .picard.matrix import MatrixMixin
+from .picard.matrix_groups import MatrixCommunityMixin
+from .picard.slackbridge import SlackBridgeMixin
+from .picard.util import RoomMemory
 
 _LOGGER = logging.getLogger(__name__)
 

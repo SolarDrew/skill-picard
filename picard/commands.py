@@ -48,7 +48,7 @@ class PicardCommands:
         for r in rooms:
             # If the room is archived don't invite people to it.
             with self.memory[r]:
-                if await self.opsdroid.get("is_archived"):
+                if await self.opsdroid.memory.get("is_archived"):
                     continue
             await message.respond(UserInvite(user=message.raw_event['sender'],
                                              target=r,
