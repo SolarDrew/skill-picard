@@ -142,12 +142,6 @@ class MatrixMixin:
             await self.opsdroid.send(RoomDescription(topic, target=matrix_room_id,
                                                      connector=self.matrix_connector))
 
-        # Add to community
-        await self.add_room_to_community(matrix_room_id)
-
-        # Enable flairs
-        await self.set_related_groups(matrix_room_id)
-
         if not _bridgeall:
             memory_users = await self.opsdroid.memory.get("autoinvite_users") or []
         else:
@@ -164,6 +158,12 @@ class MatrixMixin:
         if self.config.get("allow_at_room", False):
             await self.matrix_atroom_pl_0(matrix_room_id)
 
+        # Add to community
+        await self.add_room_to_community(matrix_room_id)
+
+        # Enable flairs
+        await self.set_related_groups(matrix_room_id)
+
         return canonical_alias
 
     async def invite_to_matrix_room(self, matrix_room_id, users):
@@ -172,7 +172,7 @@ class MatrixMixin:
         """
         for user in users:
             await self.opsdroid.send(UserInvite(target=matrix_room_id,
-                                                user=user,
+                                                user_id=user,
                                                 connector=self.matrix_connector))
 
     async def make_matrix_admin_from_config(self, matrix_room_id):
@@ -184,7 +184,7 @@ class MatrixMixin:
         for user in self.config.get("users_as_admin", []):
             # TODO: Do this manually so we only inject one state event to make all the admins admin.
             await self.opsdroid.send(UserRole(target=matrix_room_id,
-                                              user=user, role='admin',
+                                              user_id=user, role='admin',
                                               connector=self.matrix_connector))
 
     async def matrix_atroom_pl_0(self, matrix_room_id):
