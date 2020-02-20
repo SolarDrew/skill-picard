@@ -1,6 +1,6 @@
 from opsdroid.matchers import match_regex
 from opsdroid.matchers import match_crontab
-from opsdroid.message import Message
+from opsdroid.events import Message
 
 from .picard import *
 
@@ -24,9 +24,9 @@ async def mirror_slack_channels(opsdroid, config, message):
 
     if not message:
         message = Message("",
-                          None,
-                          config.get("room", conn.default_room),
-                          conn)
+                          user=None,
+                          target=config.get("room", conn.default_room),
+                          connector=conn)
 
     token = config['slack_bot_token']
     u_token = config['slack_user_token']
@@ -106,10 +106,11 @@ async def mirror_slack_channels(opsdroid, config, message):
             await update_related_groups(opsdroid, room_id, related_groups)
 
         # Run link command in the appservice admin room
-        await message.respond(
+        await message.respond(Message(
             f"link --channel_id {channel_id} --room {room_id}"
             f" --slack_bot_token {token} --slack_user_token {u_token}",
-            target='bridge')
+            target='bridge',
+            connector=conn))
 
         # Invite Users
         if config.get("users_to_invite", None):
