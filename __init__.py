@@ -109,7 +109,7 @@ async def mirror_slack_channels(opsdroid, config, message):
         await message.respond(
             f"link --channel_id {channel_id} --room {room_id}"
             f" --slack_bot_token {token} --slack_user_token {u_token}",
-            room='bridge')
+            target='bridge')
 
         # Invite Users
         if config.get("users_to_invite", None):
