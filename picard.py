@@ -81,7 +81,7 @@ def get_matrix_connector(opsdroid):
     Return the first configured matrix connector.
     """
     for conn in opsdroid.connectors:
-        if conn.name == "ConnectorMatrix":
+        if conn.name == "matrix":
             return conn
 
 
