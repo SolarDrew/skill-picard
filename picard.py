@@ -42,12 +42,13 @@ def join_bot_to_channel(bot_slack, config, bot_id, channel_id):
             _LOGGER.exception("Invite failed")
 
 
-def get_channel_mapping(slack):
+def get_channel_mapping(slack, channels=None):
     """
     Map slack channel ids to their names
     """
-    response = slack.channels.list()
-    channels = response.body['channels']
+    if not channels:
+        response = slack.channels.list()
+        channels = response.body['channels']
 
     return {c['id']: c['name'] for c in channels}
 
@@ -60,6 +61,8 @@ def get_new_channels(slack, config, seen_channels):
     response = slack.channels.list()
     channels = response.body['channels']
 
+    channel_map = get_channel_mapping(slack, channels=channels)
+
     # Get the new channels we need to process
     new_channels = {}
     for channel in channels:
@@ -67,7 +70,7 @@ def get_new_channels(slack, config, seen_channels):
             continue
         if channel['id'] not in seen_channels.keys():
             prefix = config['room_alias_prefix']
-            channel_name = get_channel_mapping(slack)[channel['id']]
+            channel_name = channel_map[channel['id']]
             server_name = config['server_name']
             alias = f"#{prefix}{channel_name}:{server_name}"
             topic = channel['topic']['value']
@@ -128,7 +131,7 @@ async def intent_self_in_room(opsdroid, room):
             room_id = await connector.connection.get_room_id(room)
         respjson = await connector.connection.join_room(room_id)
     else:
-        is_in_room = is_in_matrix_room(connector.connection, room_id)
+        is_in_room = await is_in_matrix_room(connector.connection, room_id)
 
         if not is_in_room:
             respjson = await connector.connection.join_room(room_id)
