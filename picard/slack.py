@@ -56,7 +56,7 @@ class SlackMixin:
         Set the description or topic of a channel.
         """
         try:
-            resp = await self.slack_user_client.channels_SetTopic(channel=slack_channel_id,
+            resp = await self.slack_user_client.channels_setTopic(channel=slack_channel_id,
                                                                   topic=description)
             return resp.data['topic']
         except slack.errors.SlackApiError as err:
@@ -116,7 +116,7 @@ class SlackMixin:
         """
         Get the name for a channel.
         """
-        response = await self.slack_bot_client.channels_info(slack_channel_id)
+        response = await self.slack_bot_client.channels_info(channel=slack_channel_id)
         return response.data['channel']['name']
 
     async def set_slack_channel_name(self, slack_channel_id, name):

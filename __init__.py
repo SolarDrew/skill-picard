@@ -249,12 +249,12 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         """
         dms = await self.opsdroid.memory.get("direct_messages") or {}
 
-        if join.user not in dms:
-            matrix_room_id = await self.create_new_matrix_direct_message(join.user)
-            dms.update({join.user: matrix_room_id})
+        if join.user_id not in dms:
+            matrix_room_id = await self.create_new_matrix_direct_message(join.user_id)
+            dms.update({join.user_id: matrix_room_id})
             await self.opsdroid.memory.put("direct_messages", dms)
         else:
-            matrix_room_id = dms[join.user]
+            matrix_room_id = dms[join.user_id]
 
         await self.send_matrix_welcome_message(matrix_room_id)
 
@@ -275,7 +275,7 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         """
         React to a new user joining the team on slack.
         """
-        return await self.send_slack_welcome_message(join.user)
+        return await self.send_slack_welcome_message(join.user_id)
 
     async def send_slack_welcome_message(self, slack_user_id):
         """
