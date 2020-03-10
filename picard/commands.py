@@ -139,6 +139,9 @@ class PicardCommands:
 
         await self.announce_new_room(matrix_room_alias, message.user, topic)
 
+        if message.connector is self.slack_connector:
+            await message.respond("New room created, you should have been invited to it.")
+
         return matrix_room_id
 
     @match_regex('!welcomeall')
