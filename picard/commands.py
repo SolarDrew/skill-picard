@@ -2,7 +2,6 @@ import asyncio
 import logging
 from textwrap import dedent
 
-import slacker
 from markdown import markdown
 
 from opsdroid.constraints import constrain_connectors
@@ -149,12 +148,14 @@ class PicardCommands:
     @ignore_appservice_users
     async def on_welcome_all(self, message):
         """Send the appropriate welcome message to all current users"""
+        import slack
+
         await message.respond("Sending out welcome messages.")
         slack_users = await self.get_all_slack_users()
         for user in slack_users:
             try:
                 await self.send_slack_welcome_message(user)
-            except slacker.Error:
+            except slack.errors.SlackApiError:
                 _LOGGER.exception("Failed to send welcome message")
 
     @match_regex(r"!skip (?P<flag>\w+)")
