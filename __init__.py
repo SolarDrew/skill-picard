@@ -47,6 +47,11 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
     def slack_connector(self):
         return self.opsdroid._connector_names['slack']
 
+    @match_regex('!ping')
+    @admin_command
+    async def ping(self, message):
+        message.respond("Captain Picard is on the bridge.")
+
     @match_regex('!bridgeall')
     @match_event(OpsdroidStarted)
     @admin_command
@@ -57,10 +62,10 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         if (isinstance(message, OpsdroidStarted) and
             not self.config.get("copy_from_slack_startup", True)):
 
+            await self.opsdroid.send(Message("Picard has started up, not bridging all channels as disabled in config.", target="main"))
             return
 
-        if isinstance(message, Message):
-            await message.respond("Running the bridgeall command.")
+        await self.opsdroid.send(Message("Running the bridgeall command.", target="main"))
 
         channels = await self.get_slack_channel_mapping()
         for slack_channel_id, channel in channels.items():
