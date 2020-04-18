@@ -156,9 +156,9 @@ class MatrixMixin:
                         self.config.get('users_as_admin', []) +
                         memory_users)
 
-        await self.invite_to_matrix_room(matrix_room_id, invite_users)
-
         await self.make_matrix_admin_from_config(matrix_room_id)
+
+        await self.invite_to_matrix_room(matrix_room_id, invite_users)
 
         if self.config.get("allow_at_room", False):
             await self.matrix_atroom_pl_0(matrix_room_id)
