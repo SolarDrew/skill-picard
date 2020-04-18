@@ -52,13 +52,13 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
     async def ping(self, message):
         return await message.respond("Captain Picard is on the bridge.")
 
-
-    @match_regex(r"!memory")
+    @match_regex(r'!memory (?P<key>[^\s]+)')
     @admin_command
-    async def memory(self, message):
+    async def ping2(self, message):
         key = message.regex['key']
+        data = await self.opsdroid.memory.get(key)
         _LOGGER.debug(f"Attempting to get {key} from default room memory.")
-        message.respond(self.opsdroid.memory.get(key))
+        return await message.respond(str(data))
 
 
     @match_regex('!bridgeall')
@@ -203,7 +203,11 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         if not name_template:
             return
         if room_name.connector is self.matrix_connector:
-            name = parse(name_template, room_name.name)['name']
+            name = parse(name_template, room_name.name)
+            if name is None:
+                _LOGGER.debug("Name does not match pattern, can not bridge room name change.")
+                return
+            name = name['name']
             matrix_room_id = room_name.target
             slack_channel_id = await self.slack_channel_id_from_matrix_room_id(room_name.target)
             old_name = await self.get_slack_channel_name(slack_channel_id)
