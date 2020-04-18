@@ -1,7 +1,11 @@
+import logging
+
 from matrix_client.errors import MatrixRequestError
 
 from opsdroid.events import *
 from opsdroid.connector.matrix.events import *
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class MatrixMixin:
@@ -119,6 +123,7 @@ class MatrixMixin:
         """
         with self.memory[matrix_room_id]:
             room_options = await self.opsdroid.memory.get("picard.options") or {}
+            _LOGGER.debug(f"Got picard options f{room_options} for room {matrix_room_id}")
 
         canonical_alias = await self.configure_room_aliases(matrix_room_id, name)
 

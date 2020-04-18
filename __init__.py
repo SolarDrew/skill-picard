@@ -50,7 +50,16 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
     @match_regex('!ping')
     @admin_command
     async def ping(self, message):
-        message.respond("Captain Picard is on the bridge.")
+        return await message.respond("Captain Picard is on the bridge.")
+
+
+    @match_regex(r"!memory")
+    @admin_command
+    async def memory(self, message):
+        key = message.regex['key']
+        _LOGGER.debug(f"Attempting to get {key} from default room memory.")
+        message.respond(self.opsdroid.memory.get(key))
+
 
     @match_regex('!bridgeall')
     @match_event(OpsdroidStarted)
