@@ -171,6 +171,7 @@ class MatrixCommunityMixin:
         community_users = set(community_users)
 
         new_users = community_users.difference(known_users)
+        _LOGGER.debug(f"Got the following new community users {new_users}")
 
         for user in new_users:
             _LOGGER.info(f"New user in Community {user}")
