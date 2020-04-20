@@ -209,6 +209,7 @@ class MatrixMixin:
             is_archived = await self.opsdroid.memory.get("is_archived")
 
         if is_archived:
+            _LOGGER.debug(f"The room {matrix_room_id} has already been archived.")
             return
 
         # Change default speak power level so folks can't chat
@@ -235,6 +236,7 @@ class MatrixMixin:
             is_archived = await self.opsdroid.memory.get("is_archived")
 
         if not is_archived:
+            _LOGGER.debug(f"The room {matrix_room_id} is not archived can't unarchive it.")
             return
 
         # Change default speak power level so folks can chat

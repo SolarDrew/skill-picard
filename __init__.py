@@ -109,8 +109,10 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
 
     @match_event(slack_events.ChannelArchived)
     async def on_archive_slack_channel(self, archive):
+        _LOGGER.info(f"Got slack archive event for {archive.target}")
         matrix_room_id = await self.matrix_room_id_from_slack_channel_id(archive.target)
         if not matrix_room_id:
+            _LOGGER.debug(f"Could not get matrix room id for slack channel {archive.target} to archive it.")
             return
 
         await self.archive_matrix_room(matrix_room_id)
@@ -121,6 +123,7 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
     async def on_unarchive_slack_channel(self, unarchive):
         matrix_room_id = await self.matrix_room_id_from_slack_channel_id(unarchive.target)
         if matrix_room_id:
+            _LOGGER.debug(f"Found exisiting matrix room for slack channel {unarchive.target} unarchiving it.")
             await self.unarchive_matrix_room(matrix_room_id)
 
         name = await self.get_slack_channel_name(unarchive.target)
