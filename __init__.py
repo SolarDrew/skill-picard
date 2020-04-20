@@ -53,11 +53,11 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         return await message.respond("Captain Picard is on the bridge.")
 
     @match_regex(r'!memory (?P<key>[^\s]+)')
-    @admin_command
-    async def ping2(self, message):
+    async def memory_command(self, message):
         key = message.regex['key']
-        data = await self.opsdroid.memory.get(key)
-        _LOGGER.debug(f"Attempting to get {key} from default room memory.")
+        _LOGGER.debug(f"Attempting to get {key} from {message.target} room memory.")
+        with self.memory[message.target]:
+            data = await self.opsdroid.memory.get(key)
         return await message.respond(str(data))
 
 
