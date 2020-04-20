@@ -73,6 +73,10 @@ class SlackBridgeMixin(SlackMixin):
         """
         Invite the slack bot to the room so it can listen to messages.
         """
+        # Ensure the user is in the room.
+        channel_name = await self.get_slack_channel_name(slack_channel_id)
+        await self.slack_user_client.channels_join(name=channel_name)
+
         bot_name = self.config['slack_bot_name']
         # Defined in SlackMixin
         bot_user_id = await self.get_slack_user_id(bot_name)
