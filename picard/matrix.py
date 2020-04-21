@@ -104,7 +104,7 @@ class MatrixMixin:
 
         if room_alias_templates:
             canonical_alias = room_alias_templates[0].format(name=name)
-            await self.opsdroid.send(MatrixStateEvent(key="m.room.canonical_alias",
+            await self.opsdroid.send(MatrixStateEvent("m.room.canonical_alias",
                                                       content={'alias': canonical_alias},
                                                       target=matrix_room_id,
                                                       connector=self.matrix_connector))
