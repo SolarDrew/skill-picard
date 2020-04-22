@@ -199,7 +199,8 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
                 _LOGGER.debug(f"{room_options}")
                 _LOGGER.debug("Slack Connector: Not setting topic because of room options.")
 
-    @match_event(RoomName)
+    # This is misbehaving, disabling for pyastro20
+    # @match_event(RoomName)
     async def on_name_change(self, room_name):
         """Handle a room name change."""
         name_template = self.config.get("room_name_template")
