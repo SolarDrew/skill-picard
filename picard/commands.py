@@ -171,9 +171,10 @@ class PicardCommands:
                 _LOGGER.exception(f"Failed to send welcome message to {user}")
 
         # Get list of all matrix-side users from memory
-        matrix_dms = await self.opsdroid.memory.get("direct_messages" or {})
-        for user in matrix_dms:
-            await self.send_matrix_welcome_message(user)
+        matrix_dms = await self.opsdroid.memory.get("direct_messages")
+        matrix_dms = matrix_dms or {}
+        for user, matrix_room_id in matrix_dms.items():
+            await self.send_matrix_welcome_message(matrix_room_id)
 
     @match_regex(r"!skip (?P<flag>\w+)")
     @constrain_connectors("matrix")
