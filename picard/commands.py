@@ -168,7 +168,12 @@ class PicardCommands:
             try:
                 await self.send_slack_welcome_message(user)
             except slack.errors.SlackApiError:
-                _LOGGER.exception("Failed to send welcome message")
+                _LOGGER.exception(f"Failed to send welcome message to {user}")
+
+        # Get list of all matrix-side users from memory
+        matrix_dms = await self.opsdroid.memory.get("direct_messages" or {})
+        for user in matrix_dms:
+            await self.send_matrix_welcome_message(user)
 
     @match_regex(r"!skip (?P<flag>\w+)")
     @constrain_connectors("matrix")
