@@ -19,10 +19,11 @@ class PicardCommands:
     @ignore_appservice_users
     async def on_help(self, message):
         help_text = dedent(f"""\
-        Hi {message.user}! Here are the commands you can use in the chat. Please use these commands in a private chat with the bot, to avoid spamming other users.
+        Hi {message.user}! Here are the commands you can use in the chat.
 
         * `!help`: show this help message
-        * `!createroom (name of new room) [topic of new room, optional]`: make a new room (on both matrix and slack). On the matrix side, this is the only way to make a new room, because it will be automatically added to the community and bridged to slack. From the slack side, you can either run this command or create the room normally through the UI, both will work correctly on the matrix side.
+        * `!createroom (name of new room) [topic of new room, optional]`: make a new room (on both matrix and slack). On the matrix side, this is the only way to make a new room, because it will be automatically added to the community and bridged to slack. From the slack side, you can either run this command or create the room normally through the UI, both will correctly bridge the room to the matrix side. When the room is ready a link to it will be placed in the general room.
+
         """)
 
         if message.connector is self.matrix_connector:
@@ -34,7 +35,18 @@ class PicardCommands:
             * `!autoinvite` / `!autoinvite disable`: Switch on/off automatic invitations to new rooms when they are created
             """)
 
-            help_text = markdown(help_text)
+        help_text += dedent("""\
+
+        Please run the above commands in a direct chat with the bot - not in a public room - to avoid spamming other users.
+
+        """)
+
+        config_help = self.config.get("help")
+        if config_help:
+            help_text += dedent(config_help)
+
+
+        help_text = markdown(help_text) if message.connector is self.matrix_connector else help_text
 
         return await message.respond(help_text)
 
