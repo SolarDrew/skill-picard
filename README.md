@@ -10,13 +10,14 @@ bridge them. It also will add these rooms to a matrix community.
 
 This skill was written to facilitate a bridged chat platform for a conference.
 
-**This only works with version >=0.2.0 of the slack appservice, when configured with the Events API.**
+This only works with version >=0.2.0 of the slack appservice, when configured with the Events API.
 
 This skill also implements a set of commands for users:
 
+* `!help` - Display the help message describing these commands. Will pull any additional help info from the skill configuration. (Works from Matrix and Slack.)
 * `!createroom <name> [topic]` - Create a new room and bridge it to the configured slack team. (Works from Matrix and Slack.)
-* `!inviteall` - Invite the user to all rooms in the community (matrix only).
-* `!autoinvite [disable]` - Invite the user to all future rooms (matrix only).
+* `!inviteall` - Invite the user to all rooms in the community. (Matrix only.)
+* `!autoinvite [disable]` - Invite the user to all future rooms. (Matrix only.)
 
 
 As well as this it reacts to new rooms on slack, changes of room/channel name
@@ -95,14 +96,14 @@ of the slack appservice:
 This bot uses the client-server API so can be configured on any machine. It uses
 [opsdroid](http://opsdroid.readthedocs.io/). 
 
-**Currently Picard requires [this](https://github.com/opsdroid/opsdroid/pull/951) branch of opsdroid.**
+Picard is written to work with [v0.18.0](https://github.com/opsdroid/opsdroid/releases/tag/v0.18.0) of opsdroid.
 
 
 Which can be installed via pip:
 
-    pip install git+https://github.com/SolarDrew/opsdroid.git@events
+    pip install opsdroid==0.18.0
 
-or run from docker (you will need to build your own docker image until the #951 is released):
+or run from docker:
 
     # Pull the container image
     docker pull opsdroid/opsdroid:latest
@@ -111,13 +112,14 @@ or run from docker (you will need to build your own docker image until the #951 
     docker run --rm -it -v /path/to/configuration.yaml:/etc/opsdroid/configuration.yaml:ro opsdroid/opsdroid:latest
     
 
-the configuration file must contain the following three sections, to configure both the matrix and slack connectors, the picard skill and the matrix database:
+The configuration file must contain three sections: one to configure both the matrix and slack connectors, another to configure the picard skill and the last to configure the matrix database.
+These are described below.
 
 
 #### Configuring the Connectors
 
 This skill has to be used in combination with both the matrix and slack
-connectors, they **must** be named `'matrix'` and `'slack'`. It expects the
+connectors, which **must** be named `'matrix'` and `'slack'`. It expects the
 matrix connector to be configured with two rooms, one named "main" and one named
 "bridge". i.e.
 
@@ -157,7 +159,7 @@ skills:
     appservice_bot_mxid: "@slackbot:federation.org"
     slack_bot_name: "Picard"
     room_alias_templates: 
-      - "#_enterprise_{name}:federation.org"
+      - "#enterprise_{name}:federation.org"
     room_name_template: "Enterprise {name}"
     announcement_room_name: "general"
     room_avatar_url: "mxc://federation.org/BlgDmTEkHUvXPGHpIpjPxVUt"
@@ -171,7 +173,7 @@ skills:
     copy_from_slack_startup: false # Run the !bridgeall command when opsdroid starts (ensures that all rooms exist if the bot has been offline)
 
     community_id: "+enterprise:federation.org"  # The full ID of the communtiy you want rooms added to, if not specified no communtiy interations will happen.
-    related_groups: # A list of groups to be set as "related groupsi" in all rooms, for displaying flair.
+    related_groups: # A list of groups to be set as "related groups" in all rooms, for displaying flair.
       - "+stargazer:federation.org"
 
     welcome:
@@ -190,7 +192,6 @@ For this skill to work as intended you need to configure the [`database-matrix`]
 databases:
   - name: matrix
     repo: https://github.com/SolarDrew/database-matrix
-    branch: events
 ```
 
 
