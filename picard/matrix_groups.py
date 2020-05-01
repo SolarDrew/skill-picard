@@ -171,10 +171,11 @@ class MatrixCommunityMixin:
         community_users = set(community_users)
 
         new_users = community_users.difference(known_users)
+        _LOGGER.debug(f"Got the following new community users {new_users}")
 
         for user in new_users:
             _LOGGER.info(f"New user in Community {user}")
-            await self.opsdroid.parse(JoinGroup(user=user,
+            await self.opsdroid.parse(JoinGroup(user_id=user,
                                                 target=self.config['community_id'],
                                                 connector=self.matrix_connector))
 

@@ -1,7 +1,11 @@
+import logging
+
 from matrix_client.errors import MatrixRequestError
 
 from opsdroid.events import *
 from opsdroid.connector.matrix.events import *
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class MatrixMixin:
@@ -100,7 +104,7 @@ class MatrixMixin:
 
         if room_alias_templates:
             canonical_alias = room_alias_templates[0].format(name=name)
-            await self.opsdroid.send(MatrixStateEvent(key="m.room.canonical_alias",
+            await self.opsdroid.send(MatrixStateEvent("m.room.canonical_alias",
                                                       content={'alias': canonical_alias},
                                                       target=matrix_room_id,
                                                       connector=self.matrix_connector))
@@ -119,6 +123,7 @@ class MatrixMixin:
         """
         with self.memory[matrix_room_id]:
             room_options = await self.opsdroid.memory.get("picard.options") or {}
+            _LOGGER.debug(f"Got picard options {room_options} for room {matrix_room_id}")
 
         canonical_alias = await self.configure_room_aliases(matrix_room_id, name)
 
@@ -142,12 +147,6 @@ class MatrixMixin:
             await self.opsdroid.send(RoomDescription(topic, target=matrix_room_id,
                                                      connector=self.matrix_connector))
 
-        # Add to community
-        await self.add_room_to_community(matrix_room_id)
-
-        # Enable flairs
-        await self.set_related_groups(matrix_room_id)
-
         if not _bridgeall:
             memory_users = await self.opsdroid.memory.get("autoinvite_users") or []
         else:
@@ -157,12 +156,18 @@ class MatrixMixin:
                         self.config.get('users_as_admin', []) +
                         memory_users)
 
-        await self.invite_to_matrix_room(matrix_room_id, invite_users)
-
         await self.make_matrix_admin_from_config(matrix_room_id)
+
+        await self.invite_to_matrix_room(matrix_room_id, invite_users)
 
         if self.config.get("allow_at_room", False):
             await self.matrix_atroom_pl_0(matrix_room_id)
+
+        # Add to community
+        await self.add_room_to_community(matrix_room_id)
+
+        # Enable flairs
+        await self.set_related_groups(matrix_room_id)
 
         return canonical_alias
 
@@ -172,7 +177,7 @@ class MatrixMixin:
         """
         for user in users:
             await self.opsdroid.send(UserInvite(target=matrix_room_id,
-                                                user=user,
+                                                user_id=user,
                                                 connector=self.matrix_connector))
 
     async def make_matrix_admin_from_config(self, matrix_room_id):
@@ -184,7 +189,7 @@ class MatrixMixin:
         for user in self.config.get("users_as_admin", []):
             # TODO: Do this manually so we only inject one state event to make all the admins admin.
             await self.opsdroid.send(UserRole(target=matrix_room_id,
-                                              user=user, role='admin',
+                                              user_id=user, role='admin',
                                               connector=self.matrix_connector))
 
     async def matrix_atroom_pl_0(self, matrix_room_id):
@@ -204,6 +209,7 @@ class MatrixMixin:
             is_archived = await self.opsdroid.memory.get("is_archived")
 
         if is_archived:
+            _LOGGER.debug(f"The room {matrix_room_id} has already been archived. {is_archived}.")
             return
 
         # Change default speak power level so folks can't chat
@@ -230,6 +236,7 @@ class MatrixMixin:
             is_archived = await self.opsdroid.memory.get("is_archived")
 
         if not is_archived:
+            _LOGGER.debug(f"The room {matrix_room_id} is not archived can't unarchive it.")
             return
 
         # Change default speak power level so folks can chat

@@ -1,8 +1,8 @@
+import os
 import logging
 from contextlib import contextmanager
 
-import slacker
-from aioslacker import Slacker
+import slack
 
 from opsdroid.events import NewRoom, RoomDescription
 
@@ -29,71 +29,74 @@ class SlackMixin:
         return self.config['slack_user_token']
 
     @property
-    def slacker_bot_client(self):
-        return self.slack_connector.slacker
+    def slack_bot_client(self):
+        return self.slack_connector.slack
 
     @property
-    def slacker_user_client(self):
+    def slack_user_client(self):
         """
-        A Slacker client context manager to do operations with the user token.
+        A Slack client context manager to do operations with the user token.
         """
-        @contextmanager
-        def _slacker():
-            client = Slacker(token=self.slack_user_token)
-            yield client
-            client.close()
-        return _slacker()
+        return slack.WebClient(
+            token=self.slack_user_token,
+            run_async=True,
+            ssl=self.slack_connector.ssl_context,
+            proxy=os.environ.get("HTTPS_PROXY"),
+        )
 
     async def _id_for_slack_user_token(self):
         """
         The user id of the slack_user_token.
         """
-        with self.slacker_user_client as client:
-            resp = await client.auth.test()
-            return resp.body['user_id']
+        resp = await self.slack_user_client.auth_test()
+        return resp.data['user_id']
 
     async def set_slack_channel_description(self, slack_channel_id, description):
         """
         Set the description or topic of a channel.
         """
-        with self.slacker_user_client as client:
-            try:
-                resp = await client.channels.set_topic(slack_channel_id, description)
-                return resp.body['topic']
-            except slacker.Error as err:
-                _LOGGER.exception(err)
+        try:
+            resp = await self.slack_user_client.channels_setTopic(channel=slack_channel_id,
+                                                                  topic=description)
+            return resp.data['topic']
+        except slack.errors.SlackApiError as err:
+            _LOGGER.exception(err)
 
     async def create_slack_channel(self, channel_name):
         """
-        Create a channel on slack.
+        Create a channel on slack, or if it already exists return the id.
         """
-        with self.slacker_user_client as client:
-            resp = await client.channels.create(channel_name)
-
-        return resp.body["channel"]["id"]
+        try:
+            resp = await self.slack_user_client.channels_create(name=channel_name)
+        except slack.errors.SlackApiError as err:
+            if err.response.data['error'] == "name_taken":
+                return await self.get_slack_channel_id_from_name(channel_name)
+            raise err
+        return resp.data["channel"]["id"]
 
     async def invite_user_to_slack_channel(self, slack_channel_id, user_id):
         """
         Invite a user to a channel.
         """
-        with self.slacker_user_client as client:
-            try:
-                resp = await client.channels.invite(slack_channel_id, user_id)
-                return resp.body
-            except slacker.Error as err:
+        try:
+            resp = await self.slack_user_client.channels_invite(channel=slack_channel_id,
+                                                                user=user_id)
+            return resp.data
+        except slack.errors.SlackApiError as err:
+            if err.response.data['error'] != 'already_in_channel':
                 _LOGGER.exception(err)
 
     async def get_slack_user_id(self, user_name):
         """
         Look up a slack user id based on their name.
         """
-        # This is bugged in aioslacker, so we reimplement it.
-        members = await self.slacker_bot_client.users.list()
-        return slacker.get_item_id_by_name(members.body['members'], user_name)
+        members = await self.slack_bot_client.users_list()
+        name_id_map = {m['name']: m['id'] for m in members.data['members']}
+        return name_id_map[user_name]
 
     async def get_slack_channel_list(self):
-        response = await self.slacker_bot_client.channels.list()
-        return response.body['channels']
+        response = await self.slack_bot_client.channels_list()
+        return response.data['channels']
 
     async def get_slack_channel_mapping(self):
         """
@@ -106,22 +109,21 @@ class SlackMixin:
         """
         Get the topic for a channel.
         """
-        response = await self.slacker_bot_client.channels.info(slack_channel_id)
-        return response.body['channel'].get('topic', {}).get('value', '')
+        response = await self.slack_bot_client.channels_info(channel=slack_channel_id)
+        return response.data['channel'].get('topic', {}).get('value', '')
 
     async def get_slack_channel_name(self, slack_channel_id):
         """
         Get the name for a channel.
         """
-        response = await self.slacker_bot_client.channels.info(slack_channel_id)
-        return response.body['channel']['name']
+        response = await self.slack_bot_client.channels_info(channel=slack_channel_id)
+        return response.data['channel']['name']
 
     async def set_slack_channel_name(self, slack_channel_id, name):
         """
         Get the name for a channel.
         """
-        with self.slacker_user_client as client:
-            await client.channels.rename(slack_channel_id, name)
+        return await self.slack_user_client.channels.rename(channel=slack_channel_id, name=name)
 
     async def get_slack_channel_id_from_name(self, slack_channel_name):
         channel_map = await self.get_slack_channel_mapping()
@@ -137,9 +139,9 @@ class SlackMixin:
         return message
 
     async def get_all_slack_users(self):
-        response = await self.slacker_bot_client.users.list()
-        return [m['id'] for m in response.body['members']]
+        response = await self.slack_bot_client.users_list()
+        return [m['id'] for m in response.data['members']]
 
     async def get_slack_direct_message_channel(self, slack_user_id):
-        response = await self.slacker_bot_client.im.open(slack_user_id)
-        return response.body['channel']['id']
+        response = await self.slack_bot_client.im_open(user=slack_user_id)
+        return response.data['channel']['id']

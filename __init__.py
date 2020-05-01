@@ -47,6 +47,20 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
     def slack_connector(self):
         return self.opsdroid._connector_names['slack']
 
+    @match_regex('!ping')
+    @admin_command
+    async def ping(self, message):
+        return await message.respond("Captain Picard is on the bridge.")
+
+    @match_regex(r'!memory (?P<key>[^\s]+)')
+    async def memory_command(self, message):
+        key = message.regex['key']
+        _LOGGER.debug(f"Attempting to get {key} from {message.target} room memory.")
+        with self.memory[message.target]:
+            data = await self.opsdroid.memory.get(key)
+        return await message.respond(str(data))
+
+
     @match_regex('!bridgeall')
     @match_event(OpsdroidStarted)
     @admin_command
@@ -57,10 +71,10 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         if (isinstance(message, OpsdroidStarted) and
             not self.config.get("copy_from_slack_startup", True)):
 
+            await self.opsdroid.send(Message("Picard has started up, not bridging all channels as disabled in config.", target="main"))
             return
 
-        if isinstance(message, Message):
-            await message.respond("Running the bridgeall command.")
+        await self.opsdroid.send(Message("Running the bridgeall command.", target="main"))
 
         channels = await self.get_slack_channel_mapping()
         for slack_channel_id, channel in channels.items():
@@ -95,8 +109,10 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
 
     @match_event(slack_events.ChannelArchived)
     async def on_archive_slack_channel(self, archive):
+        _LOGGER.info(f"Got slack archive event for {archive.target}")
         matrix_room_id = await self.matrix_room_id_from_slack_channel_id(archive.target)
         if not matrix_room_id:
+            _LOGGER.debug(f"Could not get matrix room id for slack channel {archive.target} to archive it.")
             return
 
         await self.archive_matrix_room(matrix_room_id)
@@ -107,6 +123,7 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
     async def on_unarchive_slack_channel(self, unarchive):
         matrix_room_id = await self.matrix_room_id_from_slack_channel_id(unarchive.target)
         if matrix_room_id:
+            _LOGGER.debug(f"Found exisiting matrix room for slack channel {unarchive.target} unarchiving it.")
             await self.unarchive_matrix_room(matrix_room_id)
 
         name = await self.get_slack_channel_name(unarchive.target)
@@ -182,14 +199,16 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
                 _LOGGER.debug(f"{room_options}")
                 _LOGGER.debug("Slack Connector: Not setting topic because of room options.")
 
-    @match_event(RoomName)
+    # This is misbehaving, disabling for pyastro20
+    # @match_event(RoomName)
     async def on_name_change(self, room_name):
         """Handle a room name change."""
         name_template = self.config.get("room_name_template")
         if not name_template:
             return
         if room_name.connector is self.matrix_connector:
-            name = parse(name_template, room_name.name)['name']
+            name = parse(name_template, room_name.name)
+            name = name or room_name.name
             matrix_room_id = room_name.target
             slack_channel_id = await self.slack_channel_id_from_matrix_room_id(room_name.target)
             old_name = await self.get_slack_channel_name(slack_channel_id)
@@ -249,12 +268,12 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         """
         dms = await self.opsdroid.memory.get("direct_messages") or {}
 
-        if join.user not in dms:
-            matrix_room_id = await self.create_new_matrix_direct_message(join.user)
-            dms.update({join.user: matrix_room_id})
+        if join.user_id not in dms:
+            matrix_room_id = await self.create_new_matrix_direct_message(join.user_id)
+            dms.update({join.user_id: matrix_room_id})
             await self.opsdroid.memory.put("direct_messages", dms)
         else:
-            matrix_room_id = dms[join.user]
+            matrix_room_id = dms[join.user_id]
 
         await self.send_matrix_welcome_message(matrix_room_id)
 
@@ -275,7 +294,7 @@ class Picard(Skill, PicardCommands, MatrixMixin, SlackBridgeMixin, MatrixCommuni
         """
         React to a new user joining the team on slack.
         """
-        return await self.send_slack_welcome_message(join.user)
+        return await self.send_slack_welcome_message(join.user_id)
 
     async def send_slack_welcome_message(self, slack_user_id):
         """

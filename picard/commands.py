@@ -2,7 +2,6 @@ import asyncio
 import logging
 from textwrap import dedent
 
-import slacker
 from markdown import markdown
 
 from opsdroid.constraints import constrain_connectors
@@ -20,10 +19,11 @@ class PicardCommands:
     @ignore_appservice_users
     async def on_help(self, message):
         help_text = dedent(f"""\
-        Hi {message.user}! Here are the commands you can use in the chat. Please use these commands in a private chat with the bot, to avoid spamming other users.
+        Hi {message.user}! Here are the commands you can use in the chat.
 
         * `!help`: show this help message
-        * `!createroom (name of new room) [topic of new room, optional]`: make a new room (on both matrix and slack). On the matrix side, this is the only way to make a new room, because it will be automatically added to the community and bridged to slack. From the slack side, you can either run this command or create the room normally through the UI, both will work correctly on the matrix side.
+        * `!createroom (name of new room) [topic of new room, optional]`: make a new room (on both matrix and slack). On the matrix side, this is the only way to make a new room, because it will be automatically added to the community and bridged to slack. From the slack side, you can either run this command or create the room normally through the UI, both will correctly bridge the room to the matrix side. When the room is ready a link to it will be placed in the general room.
+
         """)
 
         if message.connector is self.matrix_connector:
@@ -35,7 +35,18 @@ class PicardCommands:
             * `!autoinvite` / `!autoinvite disable`: Switch on/off automatic invitations to new rooms when they are created
             """)
 
-            help_text = markdown(help_text)
+        help_text += dedent("""\
+
+        Please run the above commands in a direct chat with the bot - not in a public room - to avoid spamming other users.
+
+        """)
+
+        config_help = self.config.get("help")
+        if config_help:
+            help_text += dedent(config_help)
+
+
+        help_text = markdown(help_text) if message.connector is self.matrix_connector else help_text
 
         return await message.respond(help_text)
 
@@ -139,6 +150,9 @@ class PicardCommands:
 
         await self.announce_new_room(matrix_room_alias, message.user, topic)
 
+        if message.connector is self.slack_connector:
+            await message.respond("New room created, you should have been invited to it.")
+
         return matrix_room_id
 
     @match_regex('!welcomeall')
@@ -146,13 +160,21 @@ class PicardCommands:
     @ignore_appservice_users
     async def on_welcome_all(self, message):
         """Send the appropriate welcome message to all current users"""
+        import slack
+
         await message.respond("Sending out welcome messages.")
         slack_users = await self.get_all_slack_users()
         for user in slack_users:
             try:
                 await self.send_slack_welcome_message(user)
-            except slacker.Error:
-                _LOGGER.exception("Failed to send welcome message")
+            except slack.errors.SlackApiError:
+                _LOGGER.exception(f"Failed to send welcome message to {user}")
+
+        # Get list of all matrix-side users from memory
+        matrix_dms = await self.opsdroid.memory.get("direct_messages")
+        matrix_dms = matrix_dms or {}
+        for user, matrix_room_id in matrix_dms.items():
+            await self.send_matrix_welcome_message(matrix_room_id)
 
     @match_regex(r"!skip (?P<flag>\w+)")
     @constrain_connectors("matrix")
