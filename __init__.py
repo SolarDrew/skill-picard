@@ -26,8 +26,14 @@ async def mirror_slack_channels(opsdroid, config, message):
         _LOGGER.info("Not re-starting as already running")
         return
 
-    _RUNNING = True
+    try:
+        _RUNNING = True
+        return await _run_update(opsdroid, config, message)
+    finally:
+        _RUNNING = False
 
+
+async def _run_update(opsdroid, config, message):
     _LOGGER.info("Captain Picard to the bridge.")
 
     conn = get_matrix_connector(opsdroid)
@@ -151,5 +157,3 @@ async def mirror_slack_channels(opsdroid, config, message):
         await opsdroid.memory.put("seen_channels", seen_channels)
 
         await message.respond(f"Finished adding all rooms.")
-
-    _RUNNING = False
