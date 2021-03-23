@@ -77,6 +77,9 @@ async def _run_update(opsdroid, config, message):
         rooms_in_community = {r['room_id'] for r in response['chunk']}
 
     for channel_id, (channel_name, room_alias, topic) in new_channels.items():
+
+        await message.respond(f"Processing {room_alias}.")
+
         # Apparently this isn't needed
         # Join the slack bot to these new channels
         join_bot_to_channel(slack, config, bridge_bot_id, channel_id)
@@ -148,6 +151,9 @@ async def _run_update(opsdroid, config, message):
                     in_room = await user_in_state(opsdroid, room_id, user['user_id'])
                     if not in_room:
                         await intent_user_in_room(opsdroid, user['user_id'], room_id)
+
+        seen_channels.update({channel_id: new_channels[channel_id]})
+        await opsdroid.memory.put("seen_channels", seen_channels)
 
         await message.respond(f"Finished Adding room {room_alias}")
 
