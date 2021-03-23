@@ -36,8 +36,8 @@ async def mirror_slack_channels(opsdroid, config, message):
     make_public = config.get("make_public", True)
 
     # Get userid for bot user
-    bridge_bot_id = config['bridge_bot_name']
-    bridge_bot_id = slack.users.get_user_id(bridge_bot_id)
+    bridge_bot_id = config['bridge_bot_id']
+    # bridge_bot_id = slack.users.get_user_id(bridge_bot_id)
 
     # Get the channels we have already processed out of memory
     seen_channels = await opsdroid.memory.get("seen_channels")
