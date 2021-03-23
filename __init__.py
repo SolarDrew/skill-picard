@@ -11,6 +11,8 @@ import slacker
 
 _LOGGER = logging.getLogger(__name__)
 
+_RUNNING = False
+
 
 @match_crontab('* * * * *')
 @match_regex('!updatechannels')
@@ -18,6 +20,14 @@ async def mirror_slack_channels(opsdroid, config, message):
     """
     Check what channels exist in the Slack workspace and list them.
     """
+    global _RUNNING
+
+    if _RUNNING:
+        _LOGGER.info("Not re-starting as already running")
+        return
+
+    _RUNNING = True
+
     _LOGGER.info("Captain Picard to the bridge.")
 
     conn = get_matrix_connector(opsdroid)
@@ -141,3 +151,5 @@ async def mirror_slack_channels(opsdroid, config, message):
         await opsdroid.memory.put("seen_channels", seen_channels)
 
         await message.respond(f"Finished adding all rooms.")
+
+    _RUNNING = False
