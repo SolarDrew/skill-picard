@@ -14,7 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 _RUNNING = False
 
 
-@match_crontab('* * * * *')
+@match_crontab('0 * * * *')
 @match_regex('!updatechannels')
 async def mirror_slack_channels(opsdroid, config, message):
     """
