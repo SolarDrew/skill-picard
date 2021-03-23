@@ -37,7 +37,7 @@ def join_bot_to_channel(bot_slack, config, bot_id, channel_id):
     if bot_id not in members:
         # Do an extra guard here just in case
         try:
-            slack.channels.invite(channel_id, bot_id)
+            slack.conversations.invite(channel_id, bot_id)
         except slacker.Error:
             _LOGGER.exception("Invite failed")
 
@@ -47,7 +47,7 @@ def get_channel_mapping(slack, channels=None):
     Map slack channel ids to their names
     """
     if not channels:
-        response = slack.channels.list()
+        response = slack.conversations.list()
         channels = response.body['channels']
 
     return {c['id']: c['name'] for c in channels}
@@ -58,7 +58,7 @@ def get_new_channels(slack, config, seen_channels):
     Get channels in the workspace that are not in seen_channels
     """
     # Get channel list
-    response = slack.channels.list()
+    response = slack.conversations.list()
     channels = response.body['channels']
 
     channel_map = get_channel_mapping(slack, channels=channels)
@@ -66,7 +66,7 @@ def get_new_channels(slack, config, seen_channels):
     # Get the new channels we need to process
     new_channels = {}
     for channel in channels:
-        if channel['is_archived']:
+        if channel['is_archived'] or not channel['is_channel']:
             continue
         if channel['id'] not in seen_channels.keys():
             prefix = config['room_alias_prefix']
